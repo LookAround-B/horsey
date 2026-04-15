@@ -8,16 +8,140 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private googleClient: OAuth2Client;
 
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.configService.get('GOOGLE_CLIENT_ID'),
+    );
+  }
+
+  // ─── Google OAuth (Primary Auth Flow) ──────────────────────────────────
+
+  /**
+   * Exchange a Google ID token for Horsey JWT tokens.
+   *
+   * Flow:
+   * 1. Verify Google ID token against Google's public keys
+   * 2. Extract user info (email, name, picture, sub)
+   * 3. Find or create user in the database
+   * 4. Generate and return Horsey access + refresh tokens
+   */
+  async googleAuth(
+    idToken: string,
+  ): Promise<{ accessToken: string; refreshToken: string; user: any }> {
+    let googleUser: {
+      email: string;
+      name: string;
+      picture?: string;
+      sub: string;
+    };
+
+    try {
+      const clientId = this.configService.get('GOOGLE_CLIENT_ID');
+
+      if (clientId && clientId !== '...') {
+        // Production: Verify the Google ID token with Google's public keys
+        const ticket = await this.googleClient.verifyIdToken({
+          idToken,
+          audience: clientId,
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload) {
+          throw new UnauthorizedException('Invalid Google token payload');
+        }
+
+        googleUser = {
+          email: payload.email!,
+          name: payload.name || payload.email!,
+          picture: payload.picture,
+          sub: payload.sub,
+        };
+      } else {
+        // Dev fallback: decode JWT without verification
+        const payload = this.jwtService.decode(idToken) as any;
+        if (!payload?.email) {
+          throw new UnauthorizedException('Invalid token — no email found');
+        }
+        googleUser = {
+          email: payload.email,
+          name: payload.name || payload.email,
+          picture: payload.picture,
+          sub: payload.sub || payload.email,
+        };
+      }
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
+      this.logger.error(`Google token verification failed: ${error}`);
+      throw new UnauthorizedException('Invalid Google token');
+    }
+
+    if (!googleUser?.email) {
+      throw new UnauthorizedException('Google token missing email');
+    }
+
+    // Find or create user by googleId or email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleId: googleUser.sub }, { email: googleUser.email }],
+      },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: googleUser.email,
+          name: googleUser.name,
+          avatarUrl: googleUser.picture,
+          googleId: googleUser.sub,
+          isVerified: true,
+        },
+      });
+      this.logger.log(`New user created via Google: ${googleUser.email}`);
+    } else if (!user.googleId) {
+      // Link Google account to existing user
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          googleId: googleUser.sub,
+          avatarUrl: user.avatarUrl || googleUser.picture,
+          isVerified: true,
+        },
+      });
+      this.logger.log(`Linked Google account to user: ${user.email}`);
+    }
+
+    const tokens = await this.generateTokens(user.id, user.role);
+
+    // Store hashed refresh token
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: await bcrypt.hash(tokens.refreshToken, 10) },
+    });
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+      },
+    };
+  }
+
+  // ─── OTP Flow (Legacy — kept for backward compat) ──────────────────────
 
   /**
    * Send OTP via Twilio Verify.
@@ -120,74 +244,7 @@ export class AuthService {
     };
   }
 
-  /**
-   * Google OAuth: exchange Google ID token for app JWT tokens.
-   */
-  async googleAuth(
-    idToken: string,
-  ): Promise<{ accessToken: string; refreshToken: string; user: any }> {
-    // In production, verify the Google ID token
-    // For now, decode it (the frontend sends user info)
-    let googleUser: { email: string; name: string; picture?: string; sub: string };
-
-    try {
-      // Decode the JWT (in production, verify with Google's public keys)
-      const payload = this.jwtService.decode(idToken) as any;
-      googleUser = {
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture,
-        sub: payload.sub,
-      };
-    } catch {
-      throw new UnauthorizedException('Invalid Google token');
-    }
-
-    if (!googleUser?.email) {
-      throw new UnauthorizedException('Google token missing email');
-    }
-
-    // Find or create user
-    let user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ googleId: googleUser.sub }, { email: googleUser.email }],
-      },
-    });
-
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          email: googleUser.email,
-          name: googleUser.name,
-          avatarUrl: googleUser.picture,
-          googleId: googleUser.sub,
-        },
-      });
-    } else if (!user.googleId) {
-      user = await this.prisma.user.update({
-        where: { id: user.id },
-        data: { googleId: googleUser.sub, avatarUrl: user.avatarUrl || googleUser.picture },
-      });
-    }
-
-    const tokens = await this.generateTokens(user.id, user.role);
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken: await bcrypt.hash(tokens.refreshToken, 10) },
-    });
-
-    return {
-      ...tokens,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-      },
-    };
-  }
+  // ─── Token Management ──────────────────────────────────────────────────
 
   /**
    * Refresh access token using a valid refresh token.
@@ -199,7 +256,10 @@ export class AuthService {
 
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get('JWT_REFRESH_SECRET', 'horsey-refresh-secret-dev'),
+        secret: this.configService.get(
+          'JWT_REFRESH_SECRET',
+          'horsey-refresh-secret-dev',
+        ),
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -255,7 +315,10 @@ export class AuthService {
       }),
       this.jwtService.signAsync(payload, {
         expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN', '7d'),
-        secret: this.configService.get('JWT_REFRESH_SECRET', 'horsey-refresh-secret-dev'),
+        secret: this.configService.get(
+          'JWT_REFRESH_SECRET',
+          'horsey-refresh-secret-dev',
+        ),
       }),
     ]);
 

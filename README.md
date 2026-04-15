@@ -1,152 +1,109 @@
-# Horsey
+# 🐴 Horsey — India's Premier Equestrian Platform
 
-A full-stack monorepo application built with Next.js (frontend) and NestJS (backend).
+A full-stack equestrian competition management system built for **EFI (Equestrian Federation of India)** compliance, following **REL Guidelines 2026** and **FEI** standards.
 
 ## Tech Stack
 
-- **Frontend:** Next.js 14, React 18, Tailwind CSS, shadcn/ui
-- **Backend:** NestJS 10, Express
-- **Database:** PostgreSQL with Prisma ORM
-- **Auth:** NextAuth.js (Google OAuth + Email/Password)
-- **Package Manager:** pnpm with workspaces
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 14, React 18, TanStack Query, Zustand, shadcn/ui, Tailwind CSS |
+| **Backend** | NestJS 10, Prisma ORM, PostgreSQL, Passport JWT |
+| **Shared** | TypeScript scoring engines (Dressage, Show Jumping, Tent Pegging) |
+| **Auth** | Google OAuth (NextAuth.js) + Phone OTP (Twilio) + JWT refresh rotation |
+| **Payments** | Razorpay (entry fee collection) |
+| **Real-time** | Pusher (live leaderboards) |
 
-## Project Structure
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **pnpm** ≥ 9
+- **PostgreSQL** ≥ 15
+
+### 1. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Configure Environment
+
+```bash
+# Root .env (for shared vars)
+cp .env.example .env
+
+# Web app
+# Edit apps/web/.env — add your Google OAuth credentials
+
+# API
+# Edit apps/api/.env — update DATABASE_URL if needed
+```
+
+### 3. Google OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create an **OAuth 2.0 Client ID** (Web application)
+3. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+4. Copy Client ID and Secret into `apps/web/.env`:
+   ```
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   ```
+
+### 4. Setup Database
+
+```bash
+# Start PostgreSQL, then:
+cd packages/database
+pnpm db:push     # Push schema to DB
+pnpm db:seed     # Seed with demo data
+```
+
+### 5. Start Development Servers
+
+```bash
+# Terminal 1 — API (port 3001)
+cd apps/api && pnpm start:dev
+
+# Terminal 2 — Web (port 3000)
+cd apps/web && pnpm dev
+```
+
+Open http://localhost:3000
+
+### Test Accounts (OTP code: `123456`)
+
+| Role | Phone | Name |
+|------|-------|------|
+| Admin | +919999999999 | Admin Horsey |
+| Organizer | +919876543210 | Col. Rajesh Sharma |
+| Judge | +919876543220 | Mr. Vikram Singh |
+| Rider | +919876500001 | Arjun Thapa |
+
+## Architecture
 
 ```
 horsey/
 ├── apps/
-│   ├── web/                 # Next.js frontend (port 3000)
-│   │   ├── src/
-│   │   │   ├── app/         # App router pages
-│   │   │   ├── components/  # React components
-│   │   │   └── lib/         # Utilities
-│   │   └── ...
-│   └── api/                 # NestJS backend (port 3001)
-│       ├── src/
-│       │   ├── app.module.ts
-│       │   ├── app.controller.ts
-│       │   └── main.ts
-│       └── ...
+│   ├── api/          # NestJS backend (REST API)
+│   └── web/          # Next.js frontend
 ├── packages/
-│   └── database/            # Shared Prisma client
-│       ├── prisma/
-│       │   └── schema.prisma
-│       └── src/
-│           └── index.ts
-├── package.json
-├── pnpm-workspace.yaml
-└── .env.example
+│   ├── database/     # Prisma schema + seed
+│   └── shared/       # Scoring engines, constants, types
+└── .env              # Root environment variables
 ```
 
-## Getting Started
+## EFI REL 2026 Compliance
 
-### Prerequisites
+- **MER Tracking**: Dressage ≥57%, SJ ≤8 faults, TP ≥24 points
+- **Age Categories**: Children-II (10-12), Children-I (12-14), Junior (14-18), Young Rider (16-21), Senior (18+)
+- **6 Regional Zones**: North, East, West, South, Central, North East
+- **Daily Horse Limits**: 2 Dressage + 1 SJ OR 2 SJ + 1 Dressage per horse per day
+- **Bitting**: Snaffle only for all JNEC categories
+- **Horse Age**: 7+ years for Young Rider dressage
+- **Error Deductions**: −0.5% (1st), −1.0% (2nd), Elimination (3rd)
 
-- Node.js 18+
-- pnpm (`npm install -g pnpm`)
-- PostgreSQL
+## License
 
-### Setup
-
-1. **Clone and install dependencies:**
-
-   ```bash
-   cd horsey
-   pnpm install
-   ```
-
-2. **Configure environment variables:**
-
-   ```bash
-   cp .env.example .env
-   ```
-
-   Edit `.env` and set:
-
-   ```env
-   # Database
-   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/horsey?schema=public"
-
-   # NextAuth
-   NEXTAUTH_URL=http://localhost:3000
-   NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
-
-   # Google OAuth (optional)
-   GOOGLE_CLIENT_ID="your-client-id"
-   GOOGLE_CLIENT_SECRET="your-client-secret"
-   ```
-
-   Generate a secret:
-   ```bash
-   openssl rand -base64 32
-   ```
-
-3. **Setup database:**
-
-   ```bash
-   # Generate Prisma client
-   pnpm --filter database db:generate
-
-   # Push schema to database
-   pnpm --filter database db:push
-   ```
-
-4. **Start development servers:**
-
-   ```bash
-   pnpm dev
-   ```
-
-   - Frontend: http://localhost:3000
-   - Backend: http://localhost:3001
-
-## Scripts
-
-### Root
-
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start all apps in development mode |
-| `pnpm dev:web` | Start frontend only |
-| `pnpm dev:api` | Start backend only |
-| `pnpm build` | Build all apps |
-| `pnpm lint` | Lint all apps |
-
-### Database
-
-| Command | Description |
-|---------|-------------|
-| `pnpm --filter database db:generate` | Generate Prisma client |
-| `pnpm --filter database db:push` | Push schema to database |
-| `pnpm --filter database db:migrate` | Run migrations |
-| `pnpm --filter database db:studio` | Open Prisma Studio |
-
-## Authentication
-
-The app includes NextAuth.js with:
-
-- **Email/Password:** Register at `/register`, login at `/login`
-- **Google OAuth:** Configure credentials in Google Cloud Console
-
-### Setting up Google OAuth
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create a new OAuth 2.0 Client ID
-3. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
-4. Copy Client ID and Secret to `.env`
-
-## API Endpoints
-
-### Backend (NestJS)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Hello message |
-| GET | `/health` | Health check |
-
-### Frontend API Routes (Next.js)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/register` | User registration |
-| * | `/api/auth/*` | NextAuth endpoints |
+Private — Equestrian Federation of India

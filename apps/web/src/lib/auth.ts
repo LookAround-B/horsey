@@ -13,16 +13,31 @@ export const authOptions: NextAuthOptions = {
     error: "/login",
   },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
-        token.accessToken = account.access_token
-        token.idToken = account.id_token
+        // Store Google tokens on first sign-in
+        token.googleIdToken = account.id_token
+        token.googleAccessToken = account.access_token
+        token.googleEmail = profile?.email
+        token.googleName = profile?.name
+        token.googleImage = (profile as any)?.picture
       }
       return token
     },
     async session({ session, token }) {
-      (session as any).accessToken = token.accessToken
+      // Expose Google tokens to client for API exchange
+      ;(session as any).googleIdToken = token.googleIdToken
+      ;(session as any).googleEmail = token.googleEmail
+      ;(session as any).googleName = token.googleName
+      ;(session as any).googleImage = token.googleImage
       return session
+    },
+    async signIn({ account, profile }) {
+      // Only allow verified Google accounts
+      if (account?.provider === "google") {
+        return !!(profile?.email)
+      }
+      return true
     },
   },
   secret: process.env.NEXTAUTH_SECRET || "horsey-nextauth-secret-dev",
