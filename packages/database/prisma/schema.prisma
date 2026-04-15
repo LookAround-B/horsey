@@ -7,50 +7,465 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+// ─── Enums ──────────────────────────────────────────────────────────────
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+enum Role {
+  RIDER
+  ORGANIZER
+  JUDGE
+  STABLE_OWNER
+  ADMIN
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }
+
+enum Discipline {
+  DRESSAGE
+  SHOW_JUMPING
+  EVENTING
+  TENT_PEGGING
+}
+
+enum ArenaSize {
+  SMALL_20x40
+  STANDARD_20x60
+}
+
+enum CompetitionLevel {
+  INTRODUCTORY
+  PRELIMINARY
+  NOVICE
+  ELEMENTARY
+  MEDIUM
+  ADVANCED
+  PRIX_ST_GEORGES
+  INTERMEDIATE_I
+  INTERMEDIATE_II
+  GRAND_PRIX
+}
+
+enum AgeCategory {
+  CHILDREN_II  // 10-12 years
+  CHILDREN_I   // 12-14 years
+  JUNIOR       // 14-18 years
+  YOUNG_RIDER  // 16-21 years
+  SENIOR       // 18+ (Tent Pegging only)
+}
+
+enum RegionalZone {
+  NORTH
+  EAST
+  WEST
+  SOUTH
+  CENTRAL
+  NORTH_EAST
+}
+
+enum CompetitionStatus {
+  PENDING
+  DRAW_PUBLISHED
+  IN_PROGRESS
+  SCORING
+  COMPLETED
+  CANCELLED
+}
+
+enum EntryStatus {
+  ENTERED
+  CONFIRMED
+  WITHDRAWN
+  ELIMINATED
+  COMPLETED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum CompetitionFormat {
+  TABLE_A
+  TABLE_C
+  TWO_PHASE
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  accounts      Account[]
-  sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id            String        @id @default(cuid())
+  phone         String?       @unique
+  email         String?       @unique
+  name          String
+  role          Role          @default(RIDER)
+  avatarUrl     String?
+  dateOfBirth   DateTime?
+  efiLicenseNo  String?
+  feiId         String?
+  regionalZone  RegionalZone?
+  bio           String?
+  isVerified    Boolean       @default(false)
+
+  // Auth fields
+  passwordHash  String?
+  refreshToken  String?
+  googleId      String?       @unique
+  fcmToken      String?
+
+  // Relations
+  horses        Horse[]
+  entries       Entry[]
+  stables       Stable[]       @relation("StableOwner")
+  judgeScores   Score[]        @relation("JudgeScores")
+  merRecords    MerRecord[]
+  organizedEvents Event[]      @relation("EventOrganizer")
+  payments      Payment[]
+  favorites     Favorite[]
+  inquiriesSent     Inquiry[]  @relation("InquirySender")
+  inquiriesReceived Inquiry[]  @relation("InquiryReceiver")
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([phone])
+  @@index([email])
+  @@index([role])
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+model MerRecord {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discipline    Discipline
+  ageCategory   AgeCategory
+  competitionId String
+  competition   Competition  @relation(fields: [competitionId], references: [id])
+  horseId       String
+  horse         Horse        @relation(fields: [horseId], references: [id])
+  venue         String
+  score         Float
+  achievedMer   Boolean      @default(false)
+  merDate       DateTime
+  createdAt     DateTime     @default(now())
 
-  @@unique([identifier, token])
+  @@index([userId, discipline])
+  @@index([userId, ageCategory])
+}
+
+model Horse {
+  id            String       @id @default(cuid())
+  name          String
+  breed         String
+  age           Int
+  disciplines   Discipline[]
+  passportNo    String?      @unique
+  color         String?
+  gender        String?
+  height        Float?       // in hands
+  registrationNo String?
+  ownerId       String
+  owner         User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  mediaUrls     String[]
+  entries       Entry[]
+  merRecords    MerRecord[]
+
+  // Marketplace
+  forSale       Boolean      @default(false)
+  price         Int?
+  description   String?
+  location      String?
+
+  favorites     Favorite[]
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([ownerId])
+  @@index([forSale])
+}
+
+model Event {
+  id            String       @id @default(cuid())
+  name          String
+  description   String
+  startDate     DateTime
+  endDate       DateTime
+  venue         String
+  address       String?
+  city          String?
+  state         String?
+  latitude      Float?
+  longitude     Float?
+  organizerId   String
+  organizer     User         @relation("EventOrganizer", fields: [organizerId], references: [id])
+  disciplines   Discipline[]
+  competitions  Competition[]
+  status        EventStatus  @default(DRAFT)
+  isPublished   Boolean      @default(false)
+  efiSanctioned Boolean      @default(false)
+  feiSanctioned Boolean      @default(false)
+  bannerUrl     String?
+  contactEmail  String?
+  contactPhone  String?
+  maxEntries    Int?
+  entryFee      Int?         // in paise (INR)
+  registrationDeadline DateTime?
+  rules         String?
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([organizerId])
+  @@index([startDate])
+  @@index([status])
+  @@index([latitude, longitude])
+}
+
+model Competition {
+  id            String           @id @default(cuid())
+  name          String
+  eventId       String
+  event         Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  discipline    Discipline
+  level         CompetitionLevel
+  ageCategory   AgeCategory?
+  arenaSize     ArenaSize?
+  format        CompetitionFormat?
+  testSheetId   String?
+  testSheet     TestSheet?       @relation(fields: [testSheetId], references: [id])
+  entries       Entry[]
+  scores        Score[]
+  merRecords    MerRecord[]
+  draw          Json?            // Array of {drawNumber, entryId}
+  maxJudges     Int              @default(1)
+  startTime     DateTime?
+  status        CompetitionStatus @default(PENDING)
+  orderOfGo     Int              @default(0)
+
+  // Show Jumping specific
+  courseLength   Int?             // meters
+  obstacles     Int?
+  efforts       Int?
+  speedMPerMin  Int?
+  timeAllowed   Int?             // seconds
+  heightMin     Int?             // cm
+  heightMax     Int?             // cm
+  spread        Int?             // cm
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([eventId])
+  @@index([discipline])
+  @@index([status])
+}
+
+model TestSheet {
+  id              String           @id @default(cuid())
+  name            String
+  discipline      Discipline
+  level           CompetitionLevel
+  ageCategory     AgeCategory?
+  arenaSize       ArenaSize
+  movements       Json             // Array of {number, description, letter, coefficient, maxMark}
+  collectiveMarks Json             // Array of {name, coefficient, maxMark}
+  maxScore        Int
+  timeAllowed     String?          // e.g. "6'30\""
+  competitions    Competition[]
+
+  createdAt       DateTime         @default(now())
+
+  @@unique([name, level, ageCategory])
+}
+
+model Entry {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  horseId       String
+  horse         Horse         @relation(fields: [horseId], references: [id])
+  competitionId String
+  competition   Competition   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String?
+  payment       Payment?      @relation(fields: [paymentId], references: [id])
+  drawNumber    Int?
+  scores        Score[]
+  status        EntryStatus   @default(ENTERED)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([userId, horseId, competitionId])
+  @@index([competitionId])
+  @@index([userId])
+}
+
+model Score {
+  id              String      @id @default(cuid())
+  entryId         String
+  entry           Entry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  competitionId   String
+  competition     Competition @relation(fields: [competitionId], references: [id])
+  judgeId         String
+  judge           User        @relation("JudgeScores", fields: [judgeId], references: [id])
+  judgePosition   String?     // C, B, E, H, M, K, F
+
+  // ── Dressage ──
+  movementMarks   Json?       // Array of {movementNumber, mark, coefficient, points, remark}
+  collectiveMarks Json?       // Array of {name, mark, coefficient, points}
+  qualityMarks    Json?       // Children: {position, aids, precision, impression}
+  technicalScore  Float?
+  qualityScore    Float?
+
+  errorCount      Int         @default(0)
+  errorDeductions Float       @default(0)
+
+  // ── Show Jumping ──
+  faults          Int?        // knockdown faults
+  timeFaults      Float?
+  jumpOffFaults   Int?
+  jumpOffTime     Float?
+  roundTime       Float?
+  refusals        Int         @default(0)
+
+  // ── Tent Pegging ──
+  pegPoints       Int?
+  lanceRuns       Json?       // Array of {runNumber, pegSize, points, carried}
+  swordRuns       Json?       // Array of {runNumber, pegSize, points, carried}
+
+  // ── Calculated fields ──
+  rawScore        Float       @default(0)
+  percentage      Float?
+  penalties       Float?
+  finalScore      Float       @default(0)
+
+  isEliminated    Boolean     @default(false)
+  eliminationReason String?
+  achievedMer     Boolean     @default(false)
+
+  isSubmitted     Boolean     @default(false)
+  submittedAt     DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([entryId, judgeId])
+  @@index([competitionId])
+  @@index([entryId])
+  @@index([judgeId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  razorpayOrderId String?       @unique
+  razorpayPaymentId String?     @unique
+  razorpaySignature String?
+  amount          Int           // in paise
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  entries         Entry[]
+  receiptUrl      String?
+  metadata        Json?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Stable {
+  id            String    @id @default(cuid())
+  name          String
+  ownerId       String
+  owner         User      @relation("StableOwner", fields: [ownerId], references: [id])
+  description   String?
+  address       String?
+  city          String?
+  state         String?
+  latitude      Float?
+  longitude     Float?
+  amenities     String[]
+  capacity      Int
+  pricePerMonth Int       // in paise
+  mediaUrls     String[]
+  contactPhone  String?
+  contactEmail  String?
+  rating        Float?    @default(0)
+  reviewCount   Int       @default(0)
+
+  reviews       Review[]
+  inquiries     Inquiry[] @relation("StableInquiries")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([latitude, longitude])
+  @@index([city])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  stableId  String
+  stable    Stable   @relation(fields: [stableId], references: [id], onDelete: Cascade)
+  userId    String
+  rating    Int      // 1-5
+  comment   String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([stableId, userId])
+}
+
+model Inquiry {
+  id         String   @id @default(cuid())
+  senderId   String
+  sender     User     @relation("InquirySender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("InquiryReceiver", fields: [receiverId], references: [id])
+  stableId   String?
+  stable     Stable?  @relation("StableInquiries", fields: [stableId], references: [id])
+  horseId    String?
+  subject    String
+  message    String
+  isRead     Boolean  @default(false)
+
+  createdAt  DateTime @default(now())
+}
+
+model Favorite {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  horseId String
+  horse   Horse  @relation(fields: [horseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, horseId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String   // DRAW, SCHEDULE, RESULT, ENTRY_DEADLINE, PAYMENT
+  metadata  Json?
+  isRead    Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
 }
