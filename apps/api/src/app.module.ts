@@ -4,21 +4,21 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
-// Core modules
+// Core
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { EventsModule } from './events/events.module';
-import { CompetitionsModule } from './competitions/competitions.module';
-import { ScoringModule } from './scoring/scoring.module';
-import { HorsesModule } from './horses/horses.module';
-import { MarketplaceModule } from './marketplace/marketplace.module';
-import { PaymentsModule } from './payments/payments.module';
-import { StablesModule } from './stables/stables.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { MediaModule } from './media/media.module';
 
-// Root
+// Marketplace
+import { VendorModule } from './vendor/vendor.module';
+import { ProductsModule } from './products/products.module';
+import { OrdersModule } from './orders/orders.module';
+import { SlaModule } from './sla/sla.module';
+
+// App
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -29,15 +29,13 @@ import { AppService } from './app.service';
     PrismaModule,
     AuthModule,
     UsersModule,
-    EventsModule,
-    CompetitionsModule,
-    ScoringModule,
-    HorsesModule,
-    MarketplaceModule,
-    PaymentsModule,
-    StablesModule,
     NotificationsModule,
     RealtimeModule,
+    MediaModule,
+    VendorModule,
+    ProductsModule,
+    OrdersModule,
+    SlaModule,
   ],
   controllers: [AppController],
   providers: [

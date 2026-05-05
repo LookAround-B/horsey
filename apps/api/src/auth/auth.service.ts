@@ -104,7 +104,7 @@ export class AuthService {
           name: googleUser.name,
           avatarUrl: googleUser.picture,
           googleId: googleUser.sub,
-          isVerified: true,
+          emailVerified: true,
         },
       });
       this.logger.log(`New user created via Google: ${googleUser.email}`);
@@ -115,7 +115,7 @@ export class AuthService {
         data: {
           googleId: googleUser.sub,
           avatarUrl: user.avatarUrl || googleUser.picture,
-          isVerified: true,
+          emailVerified: true,
         },
       });
       this.logger.log(`Linked Google account to user: ${user.email}`);

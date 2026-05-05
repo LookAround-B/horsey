@@ -1,3 +1,2 @@
-export * from './types';
-export * from './constants';
-export * from './scoring';
+// Marketplace shared utilities — competition scoring moved to packages/competition-scoring
+export * from './marketplace';

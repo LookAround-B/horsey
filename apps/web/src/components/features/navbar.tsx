@@ -4,23 +4,32 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
-  Trophy, MapPin, Store, Home as HomeIcon, User, Menu, X, LogOut,
-  Calendar, BarChart3, Landmark,
+  Store, User, Menu, X, LogOut, ShoppingCart, Package,
+  BarChart3, Shield,
+  Trophy,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
-  { href: "/events", label: "Events", icon: Calendar },
   { href: "/marketplace", label: "Marketplace", icon: Store },
-  { href: "/stables", label: "Stables", icon: Landmark },
 ]
 
-const authLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/dashboard/horses", label: "My Horses", icon: Trophy },
-  { href: "/dashboard/profile", label: "Profile", icon: User },
+const vendorLinks = [
+  { href: "/vendor/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/vendor/orders", label: "Orders", icon: Package },
+  { href: "/vendor/listings", label: "Listings", icon: Store },
+]
+
+const buyerLinks = [
+  { href: "/orders", label: "My Orders", icon: Package },
+  { href: "/cart", label: "Cart", icon: ShoppingCart },
+]
+
+const adminLinks = [
+  { href: "/admin/vendors", label: "Vendors", icon: Shield },
+  { href: "/admin/orders", label: "Orders", icon: Package },
 ]
 
 export function Navbar() {
@@ -64,12 +73,30 @@ export function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <BarChart3 className="w-4 h-4" />
-                  Dashboard
-                </Button>
-              </Link>
+              {user?.role === 'VENDOR' && (
+                <Link href="/vendor/dashboard">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Vendor Portal
+                  </Button>
+                </Link>
+              )}
+              {user?.role === 'ADMIN' && (
+                <Link href="/admin/orders">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <Shield className="w-4 h-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              {user?.role === 'BUYER' && (
+                <Link href="/cart">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <ShoppingCart className="w-4 h-4" />
+                    Cart
+                  </Button>
+                </Link>
+              )}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xs font-bold">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
@@ -135,7 +162,7 @@ export function Navbar() {
             {isAuthenticated && (
               <>
                 <div className="h-px bg-border my-2" />
-                {authLinks.map((link) => (
+                {(user?.role === 'VENDOR' ? vendorLinks : user?.role === 'ADMIN' ? adminLinks : buyerLinks).map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
