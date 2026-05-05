@@ -16,7 +16,7 @@ import { MediaModule } from './media/media.module';
 import { VendorModule } from './vendor/vendor.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
-import { SlaModule } from './sla/sla.module';
+// import { SlaModule } from './sla/sla.module'; // Disabled: pg-boss queues not initialized in dev
 
 // App
 import { AppController } from './app.controller';
@@ -35,7 +35,7 @@ import { AppService } from './app.service';
     VendorModule,
     ProductsModule,
     OrdersModule,
-    SlaModule,
+    // SlaModule, // Disabled: pg-boss queues not initialized in dev
   ],
   controllers: [AppController],
   providers: [

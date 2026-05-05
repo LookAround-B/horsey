@@ -3,13 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter shared build && pnpm -r --parallel --filter=!shared dev",
-    "dev:web": "pnpm --filter web dev",
-    "dev:api": "pnpm --filter shared build && pnpm --filter api dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "dev": "turbo run dev --parallel",
+    "dev:web": "turbo run dev --filter=web",
+    "dev:api": "turbo run dev --filter=api",
+    "build": "turbo run build",
+    "lint": "turbo run lint"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@10.18.3",
+  "dependencies": {
+    "turbo": "^2.9.9"
   }
 }
