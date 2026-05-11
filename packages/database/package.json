@@ -14,7 +14,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
