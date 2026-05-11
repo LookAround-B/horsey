@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { join } from 'path';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -28,7 +29,14 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Always load .env from the api package directory, regardless of cwd
+      envFilePath: [
+        join(__dirname, '..', '.env'),          // dist/../.env  → apps/api/.env
+        join(__dirname, '..', '..', '.env'),    // fallback: monorepo root .env
+      ],
+    }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
     AuthModule,
