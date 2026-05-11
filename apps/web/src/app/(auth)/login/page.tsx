@@ -40,6 +40,8 @@ function LoginPage() {
   const [error, setError] = useState("")
 
   const base = API_BASE
+  // For Google OAuth, we need the real API URL, not the proxy
+  const realApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,7 +70,8 @@ function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
-    setError("Google login requires OAuth setup. Use email + password for now.")
+    // Redirect to backend Google OAuth endpoint (must use real API URL, not proxy)
+    window.location.href = `${realApiUrl}/auth/google`
   }
 
   return (
