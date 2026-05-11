@@ -132,6 +132,9 @@ export class OrdersService {
       return sum + Number(price) * item.quantity;
     }, 0);
 
+    // Collect side-effect data to fire after transaction commits
+    const postTxSideEffects: Array<{ vendorUserId: string; subOrderId: string; acceptanceDeadline: Date }> = [];
+
     // Create order + sub-orders in a transaction
     const order = await this.prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
@@ -180,14 +183,8 @@ export class OrdersService {
           },
         });
 
-        // Schedule SLA reminders via pg-boss
-        await this.slaService.scheduleReminders(subOrder.id, acceptanceDeadline);
-
-        // Notify vendor
-        await this.notificationsService.notifyNewOrder(
-          vendor.user.id,
-          subOrder.id,
-        );
+        // Queue side effects to run after the transaction commits
+        postTxSideEffects.push({ vendorUserId: vendor.user.id, subOrderId: subOrder.id, acceptanceDeadline });
       }
 
       // Clear cart
@@ -195,6 +192,12 @@ export class OrdersService {
 
       return newOrder;
     });
+
+    // Fire notifications and SLA jobs AFTER transaction commits so FK references exist
+    for (const { vendorUserId, subOrderId, acceptanceDeadline } of postTxSideEffects) {
+      await this.slaService.scheduleReminders(subOrderId, acceptanceDeadline);
+      await this.notificationsService.notifyNewOrder(vendorUserId, subOrderId);
+    }
 
     return this.prisma.order.findUnique({
       where: { id: order.id },
@@ -204,13 +207,15 @@ export class OrdersService {
 
   // ─── Buyer Orders ──────────────────────────────────────────────────────────
 
-  async getBuyerOrders(userId: string, page = 1, pageSize = 20) {
-    const skip = (page - 1) * pageSize;
+  async getBuyerOrders(userId: string, page: number = 1, pageSize: number = 20) {
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 20);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where: { buyerId: userId },
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'desc' },
         include: {
           subOrders: {
@@ -231,21 +236,23 @@ export class OrdersService {
       }),
       this.prisma.order.count({ where: { buyerId: userId } }),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 
   // ─── Vendor Order Management ──────────────────────────────────────────────
 
-  async getVendorOrders(userId: string, page = 1, pageSize = 20) {
+  async getVendorOrders(userId: string, page: number = 1, pageSize: number = 20) {
     const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
     if (!vendor) throw new ForbiddenException('Not a vendor');
 
-    const skip = (page - 1) * pageSize;
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 20);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.subOrder.findMany({
         where: { vendorId: vendor.id },
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { acceptanceDeadline: 'asc' }, // urgency-first
         include: {
           order: {
@@ -268,7 +275,7 @@ export class OrdersService {
       }),
       this.prisma.subOrder.count({ where: { vendorId: vendor.id } }),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 
   async acceptSubOrder(userId: string, subOrderId: string) {
@@ -455,9 +462,9 @@ export class OrdersService {
     page?: number;
     pageSize?: number;
   }) {
-    const page = filters.page || 1;
-    const pageSize = filters.pageSize || 50;
-    const skip = (page - 1) * pageSize;
+    const p = Math.max(1, Number(filters.page) || 1);
+    const ps = Math.max(1, Number(filters.pageSize) || 50);
+    const skip = (p - 1) * ps;
 
     const where: any = {};
     if (filters.status) where.status = filters.status;
@@ -467,7 +474,7 @@ export class OrdersService {
       this.prisma.subOrder.findMany({
         where,
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'desc' },
         include: {
           vendor: { select: { id: true, businessName: true } },
@@ -480,7 +487,7 @@ export class OrdersService {
       this.prisma.subOrder.count({ where }),
     ]);
 
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 
   async getSlaDashboard() {

@@ -216,16 +216,18 @@ export class ProductsService {
     });
   }
 
-  async getVendorProducts(userId: string, page = 1, pageSize = 20) {
+  async getVendorProducts(userId: string, page: number = 1, pageSize: number = 20) {
     const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
     if (!vendor) throw new ForbiddenException('Not a vendor');
 
-    const skip = (page - 1) * pageSize;
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 20);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.product.findMany({
         where: { vendorId: vendor.id },
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { updatedAt: 'desc' },
         include: {
           category: { select: { name: true, slug: true } },
@@ -235,7 +237,7 @@ export class ProductsService {
       }),
       this.prisma.product.count({ where: { vendorId: vendor.id } }),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 
   async addMedia(userId: string, productId: string, url: string, type: string, order = 0) {

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function VendorApplyPage() {
   const [form, setForm] = useState({
@@ -22,9 +22,6 @@ export default function VendorApplyPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const router = useRouter()
-
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
 
   const addKycFile = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const file = e.target.files?.[0]
@@ -43,12 +40,9 @@ export default function VendorApplyPage() {
     setSubmitting(true)
     try {
       // 1. Submit application
-      const res = await fetch(`${base}/vendors/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify(form),
-      })
-      if (!res.ok) {
+      try {
+        await apiClient.post("/vendors/apply", form)
+      } catch {
         alert("Failed to submit application. Please try again.")
         return
       }
@@ -56,33 +50,22 @@ export default function VendorApplyPage() {
       // 2. Upload KYC documents (if any) via presigned URLs
       for (const kycFile of kycFiles) {
         try {
-          // Get presigned URL
-          const presignRes = await fetch(`${base}/media/presigned-url`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({
-              contentType: kycFile.file.type,
-              contentLength: kycFile.file.size,
-              folder: "kyc",
-            }),
+          const presignRes = await apiClient.post("/media/presigned-url", {
+            contentType: kycFile.file.type,
+            contentLength: kycFile.file.size,
+            folder: "kyc",
           })
-          if (!presignRes.ok) continue
+          // TransformInterceptor: res.data.data = { presignedUrl, publicUrl }
+          const { presignedUrl, publicUrl } = presignRes.data?.data ?? {}
+          if (!presignedUrl) continue
 
-          const { presignedUrl, publicUrl } = await presignRes.json()
-
-          // Upload file
           await fetch(presignedUrl, {
             method: "PUT",
             headers: { "Content-Type": kycFile.file.type },
             body: kycFile.file,
           })
 
-          // Link KYC document to vendor profile
-          await fetch(`${base}/vendors/kyc-document`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ type: kycFile.type, url: publicUrl }),
-          })
+          await apiClient.post("/vendors/kyc-document", { type: kycFile.type, url: publicUrl })
         } catch {
           // Continue with other files if one fails
         }

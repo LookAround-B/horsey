@@ -7,8 +7,10 @@ export class AdminService {
 
   // ─── Users ────────────────────────────────────────────────────────────────
 
-  async listUsers(q?: string, page = 1, pageSize = 50) {
-    const skip = (page - 1) * pageSize;
+  async listUsers(q?: string, page: number = 1, pageSize: number = 50) {
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 50);
+    const skip = (p - 1) * ps;
     const where: any = {};
     if (q) {
       where.OR = [
@@ -22,7 +24,7 @@ export class AdminService {
       this.prisma.user.findMany({
         where,
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -38,7 +40,7 @@ export class AdminService {
       this.prisma.user.count({ where }),
     ]);
 
-    return { data, total, page, pageSize };
+    return { data, total, page: p, pageSize: ps };
   }
 
   async suspendUser(adminId: string, userId: string) {
@@ -159,12 +161,14 @@ export class AdminService {
 
   // ─── Disputes ─────────────────────────────────────────────────────────────
 
-  async listDisputes(page = 1, pageSize = 50) {
-    const skip = (page - 1) * pageSize;
+  async listDisputes(page: number = 1, pageSize: number = 50) {
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 50);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.dispute.findMany({
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'desc' },
         include: {
           openedBy: { select: { name: true, email: true } },
@@ -173,7 +177,7 @@ export class AdminService {
       }),
       this.prisma.dispute.count(),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total, page: p, pageSize: ps };
   }
 
   async getDisputeMessages(disputeId: string) {

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const HORSE_ATTRS = ["lineage", "registry", "breed", "trainingLevel", "age"]
 const FEED_ATTRS = ["brand", "weight", "ingredients"]
@@ -35,13 +35,12 @@ export default function NewListingPage() {
   const [newMediaUrl, setNewMediaUrl] = useState("")
   const [newMediaType, setNewMediaType] = useState("IMAGE")
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   useEffect(() => {
-    fetch(`${base}/products/categories`)
-      .then((r) => r.json())
-      .then(setCategories)
+    apiClient.get("/products/categories")
+      .then((r) => {
+        const list = r.data?.data  // TransformInterceptor: res.data.data = array
+        setCategories(Array.isArray(list) ? list : [])
+      })
       .catch(() => {})
   }, [])
 
@@ -70,48 +69,38 @@ export default function NewListingPage() {
     setError("")
     setLoading(true)
     try {
-      const res = await fetch(`${base}/products`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({
-          title,
-          description,
-          categoryId,
-          price: parseFloat(price),
-          inventory: parseInt(inventory),
-          lowStockAlert: parseInt(lowStockAlert),
-          status,
-          freightRequired,
-          attributes,
-        }),
+      const res = await apiClient.post("/products", {
+        title,
+        description,
+        categoryId,
+        price: parseFloat(price),
+        inventory: parseInt(inventory),
+        lowStockAlert: parseInt(lowStockAlert),
+        status,
+        freightRequired,
+        attributes,
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.message || "Failed to create listing")
-        return
-      }
+      const product = res.data?.data  // TransformInterceptor: res.data.data = created product
 
       // Upload media URLs
-      await Promise.all(
-        mediaUrls.map((m) =>
-          fetch(`${base}/products/${data.id}/media`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-            body: JSON.stringify({ url: m.url, type: m.type }),
-          })
+      if (mediaUrls.length > 0) {
+        await Promise.all(
+          mediaUrls.map((m) =>
+            apiClient.post(`/products/${product.id}/media`, { url: m.url, type: m.type })
+          )
         )
-      )
+      }
 
       router.push("/vendor/listings")
-    } catch {
-      setError("Something went wrong. Please try again.")
+    } catch (err: any) {
+      setError(err.response?.data?.data?.message || err.response?.data?.message || "Something went wrong. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="container py-8 max-w-2xl">
+    <div className="max-w-2xl">
       <Link href="/vendor/listings" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Listings
       </Link>

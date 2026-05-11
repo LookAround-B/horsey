@@ -102,6 +102,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Featured Listings — new horses & promoted products */}
+      <section className="container py-16 md:py-24">
+        <FeaturedListings />
+      </section>
+
       {/* Categories */}
       <section className="container py-20 md:py-28">
         <div className="text-center max-w-2xl mx-auto mb-14">
@@ -132,10 +137,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured / New Listings */}
-      <section className="container py-16 md:py-24">
-        <FeaturedListings />
-      </section>
 
       {/* Why Horsey */}
       <section className="bg-card/30 border-y border-border/40">

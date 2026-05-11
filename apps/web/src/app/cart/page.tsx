@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function CartPage() {
   const [cart, setCart] = useState<any>(null)
@@ -16,18 +16,13 @@ export default function CartPage() {
   const router = useRouter()
 
   const fetchCart = async () => {
-    const token = localStorage.getItem("horsey_access_token")
-    const base = API_BASE
-    const res = await fetch(`${base}/cart`, { headers: { Authorization: `Bearer ${token}` } })
-    const data = await res.json()
-    setCart(data)
+    const res = await apiClient.get("/cart").catch(() => null)
+    setCart(res?.data?.data ?? null)  // TransformInterceptor: res.data.data = cart object
     setLoading(false)
   }
 
   const removeItem = async (itemId: string) => {
-    const token = localStorage.getItem("horsey_access_token")
-    const base = API_BASE
-    await fetch(`${base}/cart/items/${itemId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } })
+    await apiClient.delete(`/cart/items/${itemId}`).catch(() => {})
     fetchCart()
   }
 

@@ -6,20 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function AdminVendorsPage() {
   const [vendors, setVendors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("horsey_access_token")
-  const base = API_BASE
-
   const fetchVendors = async () => {
-    const res = await fetch(`${base}/vendors/applications`, { headers: { Authorization: `Bearer ${token()}` } })
-    const data = await res.json()
-    setVendors(data.data ?? [])
+    const res = await apiClient.get("/vendors/applications")
+    const body = res.data?.data
+    const raw = body?.data ?? body ?? []
+    setVendors(Array.isArray(raw) ? raw : [])
     setLoading(false)
   }
 
@@ -27,17 +25,13 @@ export default function AdminVendorsPage() {
 
   const review = async (id: string, action: string) => {
     setActionLoading(id)
-    await fetch(`${base}/vendors/${id}/review`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ action }),
-    })
+    await apiClient.patch(`/vendors/${id}/review`, { action })
     await fetchVendors()
     setActionLoading(null)
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Vendor Applications</h1>
         <Badge variant="secondary">{vendors.length} pending</Badge>

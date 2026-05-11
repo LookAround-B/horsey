@@ -216,8 +216,9 @@ async function main() {
       update: {},
     });
 
+    // Always refresh media so re-seeding updates images
+    await prisma.productMedia.deleteMany({ where: { productId: product.id } });
     if (mediaUrls.length) {
-      await prisma.productMedia.deleteMany({ where: { productId: product.id } });
       await prisma.productMedia.createMany({
         data: mediaUrls.map((url, order) => ({
           productId: product.id,
@@ -227,7 +228,6 @@ async function main() {
         })),
       });
     }
-
     return product;
   }
 
@@ -281,7 +281,7 @@ async function main() {
       freightRequired: false,
       attributes: { breed: 'Kathiawari', lineage: 'Sire: Desert Wind, Dam: Priya Rani', registry: 'EFI/2020/KTH/0089', trainingLevel: 'Advanced Show Jumping' },
     },
-    ['https://images.unsplash.com/photo-1534307671554-9a6d81f4d629?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1452378174528-3090a4bba7b2?w=800&auto=format&fit=crop'],
   );
 
   // ── Feed & Supplements ─────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ async function main() {
       isFeatured: true,
       attributes: { brand: 'GreenMeadow', weight: 25, ingredients: 'Alfalfa (Medicago sativa)' },
     },
-    ['https://images.unsplash.com/photo-1574482620826-40685ca5ebd2?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&auto=format&fit=crop&q=80'],
   );
 
   await upsertProduct(
@@ -317,7 +317,7 @@ async function main() {
       isFeatured: true,
       attributes: { brand: 'EquiLyte Pro', weight: 5, ingredients: 'Sodium Chloride, Potassium Chloride, Magnesium Sulphate, Dextrose' },
     },
-    ['https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1450052590821-8bf91254a353?w=800&auto=format&fit=crop'],
   );
 
   await upsertProduct(
@@ -352,7 +352,7 @@ async function main() {
       isFeatured: true,
       attributes: { size: 'Medium', color: 'Havana Brown', discipline: 'English' },
     },
-    ['https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=800&auto=format&fit=crop&q=80'],
   );
 
   await upsertProduct(
@@ -368,7 +368,7 @@ async function main() {
       isFeatured: true,
       attributes: { size: 'Full', color: 'Black', discipline: 'Western' },
     },
-    ['https://images.unsplash.com/photo-1501706362039-c06b2d715385?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1452378174528-3090a4bba7b2?w=800&auto=format&fit=crop'],
   );
 
   await upsertProduct(
@@ -384,7 +384,7 @@ async function main() {
       isFeatured: false,
       attributes: { size: '145cm', color: 'Navy Blue', discipline: 'Both' },
     },
-    ['https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1450052590821-8bf91254a353?w=800&auto=format&fit=crop&q=80'],
   );
 
   // ── Grooming & Health ──────────────────────────────────────────────────────
@@ -403,7 +403,7 @@ async function main() {
       isFeatured: true,
       attributes: { size: 'One Size' },
     },
-    ['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&auto=format&fit=crop'],
   );
 
   await upsertProduct(
@@ -420,7 +420,7 @@ async function main() {
       isFeatured: false,
       attributes: { size: '5L' },
     },
-    ['https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=800&auto=format&fit=crop'],
   );
 
   await upsertProduct(
@@ -437,7 +437,7 @@ async function main() {
       isFeatured: true,
       attributes: { size: 'One Size' },
     },
-    ['https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1452378174528-3090a4bba7b2?w=800&auto=format&fit=crop'],
   );
 
   // ── Stable Equipment ───────────────────────────────────────────────────────
@@ -456,7 +456,7 @@ async function main() {
       isFeatured: false,
       attributes: {},
     },
-    ['https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1450052590821-8bf91254a353?w=800&auto=format&fit=crop'],
   );
 
   await upsertProduct(
@@ -473,7 +473,7 @@ async function main() {
       isFeatured: true,
       attributes: {},
     },
-    ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&auto=format&fit=crop&q=80&sat=-30'],
   );
 
   await upsertProduct(
@@ -490,7 +490,7 @@ async function main() {
       isFeatured: false,
       attributes: {},
     },
-    ['https://images.unsplash.com/photo-1574482620826-40685ca5ebd2?w=800&auto=format&fit=crop'],
+    ['https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=800&auto=format&fit=crop&q=80&sat=-20'],
   );
 
   console.log('✅ Products seeded (15 total across 5 categories)');

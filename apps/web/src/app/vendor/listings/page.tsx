@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -25,18 +25,14 @@ export default function VendorListingsPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("horsey_access_token")
-  const base = API_BASE
-
   const fetchListings = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${base}/products/vendor/my-listings?page=${page}&pageSize=20`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      })
-      const data = await res.json()
-      setProducts(data.data ?? [])
-      setTotal(data.total ?? 0)
+      const res = await apiClient.get(`/products/vendor/my-listings?page=${page}&pageSize=20`)
+      const body = res.data?.data  // { data: [...], total }
+      const raw = body?.data ?? body ?? []
+      setProducts(Array.isArray(raw) ? raw : [])
+      setTotal(body?.total ?? 0)
     } catch {
       setProducts([])
     } finally {
@@ -48,17 +44,13 @@ export default function VendorListingsPage() {
 
   const updateStatus = async (id: string, status: string) => {
     setUpdatingId(id)
-    await fetch(`${base}/products/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ status }),
-    })
+    await apiClient.patch(`/products/${id}`, { status })
     await fetchListings()
     setUpdatingId(null)
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">My Listings</h1>

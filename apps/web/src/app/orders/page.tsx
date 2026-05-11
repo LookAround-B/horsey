@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ReviewForm } from "@/components/features/review-form"
 import { formatCountdown, getRemainingMs, getSlaZone } from "shared"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 function CountdownTimer({ deadline }: { deadline: string }) {
   const [remaining, setRemaining] = useState(getRemainingMs(new Date(deadline)))
@@ -44,11 +44,13 @@ export default function BuyerOrdersPage() {
   const [reviewingItem, setReviewingItem] = useState<{ productId: string; productTitle: string; subOrderId: string } | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem("horsey_access_token")
-    const base = API_BASE
-    fetch(`${base}/orders`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { setOrders(data.data ?? []); setLoading(false) })
+    apiClient.get("/orders")
+      .then((r) => {
+        const body = r.data?.data  // { data: [...], total }
+        const raw = body?.data ?? body ?? []
+        setOrders(Array.isArray(raw) ? raw : [])
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [])
 

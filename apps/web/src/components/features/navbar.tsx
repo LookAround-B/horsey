@@ -1,116 +1,49 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { useState } from "react"
-import {
-  Store, User, Menu, X, LogOut, ShoppingCart, Package,
-  BarChart3, Shield,
-  Trophy,
-} from "lucide-react"
+import { Menu, X, LogOut, Store, Trophy, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores"
-import { cn } from "@/lib/utils"
 import { NotificationBell } from "./notification-bell"
 
-const navLinks = [
-  { href: "/marketplace", label: "Marketplace", icon: Store },
-]
-
-const vendorLinks = [
-  { href: "/vendor/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/vendor/orders", label: "Orders", icon: Package },
-  { href: "/vendor/listings", label: "Listings", icon: Store },
-]
-
-const buyerLinks = [
-  { href: "/orders", label: "My Orders", icon: Package },
-  { href: "/cart", label: "Cart", icon: ShoppingCart },
-]
-
-const adminLinks = [
-  { href: "/admin/vendors", label: "Vendors", icon: Shield },
-  { href: "/admin/orders", label: "Orders", icon: Package },
-]
-
 export function Navbar() {
-  const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuthStore()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-50 w-full glass border-b border-border/40">
-      <div className="container flex h-16 items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+      <div className="container flex h-16 items-center justify-between gap-4">
+
+        {/* Logo — links to dashboard if logged in, home otherwise */}
+        <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2.5 group shrink-0">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:shadow-orange-500/40 transition-shadow">
             <Trophy className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-bold gradient-text hidden sm:block">
-            Horsey
-          </span>
+          <span className="text-xl font-bold gradient-text hidden sm:block">Horsey</span>
         </Link>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                pathname === link.href || pathname.startsWith(link.href + "/")
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
-            >
-              <link.icon className="w-4 h-4" />
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Auth Actions */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Desktop right rail — profile + logout only */}
+        <div className="hidden md:flex items-center gap-2">
           {isAuthenticated ? (
             <>
-              {user?.role === 'VENDOR' && (
-                <Link href="/vendor/dashboard">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    Vendor Portal
-                  </Button>
-                </Link>
-              )}
-              {user?.role === 'ADMIN' && (
-                <Link href="/admin/orders">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <Shield className="w-4 h-4" />
-                    Admin
-                  </Button>
-                </Link>
-              )}
-              {user?.role === 'BUYER' && (
-                <Link href="/cart">
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    Cart
-                  </Button>
-                </Link>
-              )}
               <NotificationBell />
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xs font-bold">
-                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+              <Link href="/dashboard/profile">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                    {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-none truncate max-w-[120px]">{user?.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{user?.role?.toLowerCase()}</p>
+                  </div>
                 </div>
-                <span className="text-sm font-medium max-w-[100px] truncate">
-                  {user?.name}
-                </span>
-              </div>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => logout()}
+                title="Sign out"
                 className="text-muted-foreground hover:text-destructive"
               >
                 <LogOut className="w-4 h-4" />
@@ -121,7 +54,7 @@ export function Navbar() {
               <Link href="/login">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
-              <Link href="/login">
+              <Link href="/register">
                 <Button size="sm" className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/20">
                   Get Started
                 </Button>
@@ -130,75 +63,46 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
+        {/* Mobile toggle */}
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile dropdown */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-xl animate-fade-in">
+        <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-xl">
           <div className="container py-4 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                  pathname.startsWith(link.href)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <link.icon className="w-4 h-4" />
-                {link.label}
-              </Link>
-            ))}
-            {isAuthenticated && (
+            <Link href="/marketplace" onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted">
+              <Store className="w-4 h-4" /> Marketplace
+            </Link>
+
+            {isAuthenticated ? (
               <>
+                <Link href="/dashboard" onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted">
+                  <User className="w-4 h-4" /> Dashboard
+                </Link>
                 <div className="flex items-center justify-between px-4 py-2">
                   <span className="text-sm text-muted-foreground">Notifications</span>
                   <NotificationBell />
                 </div>
-                <div className="h-px bg-border my-2" />
-                {(user?.role === 'VENDOR' ? vendorLinks : user?.role === 'ADMIN' ? adminLinks : buyerLinks).map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                      pathname.startsWith(link.href)
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    <link.icon className="w-4 h-4" />
-                    {link.label}
-                  </Link>
-                ))}
+                <div className="h-px bg-border my-1" />
                 <button
-                  onClick={() => { logout(); setMobileOpen(false); }}
+                  onClick={() => { logout(); setMobileOpen(false) }}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
+                  <LogOut className="w-4 h-4" /> Sign Out
                 </button>
               </>
-            )}
-            {!isAuthenticated && (
-              <div className="pt-2">
+            ) : (
+              <div className="pt-2 space-y-2">
                 <Link href="/login" onClick={() => setMobileOpen(false)}>
-                  <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white">
-                    Sign In
-                  </Button>
+                  <Button variant="outline" className="w-full">Sign In</Button>
+                </Link>
+                <Link href="/register" onClick={() => setMobileOpen(false)}>
+                  <Button className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white">Get Started</Button>
                 </Link>
               </div>
             )}

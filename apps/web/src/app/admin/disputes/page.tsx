@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function AdminDisputesPage() {
   const [disputes, setDisputes] = useState<any[]>([])
@@ -19,16 +19,12 @@ export default function AdminDisputesPage() {
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   const fetchDisputes = async () => {
     try {
-      const res = await fetch(`${base}/admin/disputes`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      })
-      const data = await res.json()
-      setDisputes(data.data ?? data ?? [])
+      const res = await apiClient.get("/admin/disputes")
+      const body = res.data?.data  // { data: [...], total }
+      const raw = body?.data ?? body ?? []
+      setDisputes(Array.isArray(raw) ? raw : [])
     } catch {}
     setLoading(false)
   }
@@ -38,11 +34,9 @@ export default function AdminDisputesPage() {
   const selectDispute = async (dispute: any) => {
     setSelectedDispute(dispute)
     try {
-      const res = await fetch(`${base}/admin/disputes/${dispute.id}/messages`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      })
-      const data = await res.json()
-      setMessages(Array.isArray(data) ? data : [])
+      const res = await apiClient.get(`/admin/disputes/${dispute.id}/messages`)
+      const msgs = res.data?.data  // array directly (no pagination wrapper)
+      setMessages(Array.isArray(msgs) ? msgs : [])
     } catch {
       setMessages([])
     }
@@ -53,11 +47,7 @@ export default function AdminDisputesPage() {
     if (!newMessage.trim() || !selectedDispute) return
     setSending(true)
     try {
-      await fetch(`${base}/admin/disputes/${selectedDispute.id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ body: newMessage.trim() }),
-      })
+      await apiClient.post(`/admin/disputes/${selectedDispute.id}/messages`, { body: newMessage.trim() })
       setNewMessage("")
       await selectDispute(selectedDispute)
     } catch {}
@@ -65,11 +55,7 @@ export default function AdminDisputesPage() {
   }
 
   const resolveDispute = async (id: string, resolution: string) => {
-    await fetch(`${base}/admin/disputes/${id}/resolve`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ resolution }),
-    })
+    await apiClient.patch(`/admin/disputes/${id}/resolve`, { resolution })
     await fetchDisputes()
     setSelectedDispute(null)
   }
@@ -90,7 +76,7 @@ export default function AdminDisputesPage() {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-6xl">
+      <div className="max-w-6xl">
         <Skeleton className="h-8 w-48 mb-6" />
         <div className="grid grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
@@ -100,7 +86,7 @@ export default function AdminDisputesPage() {
   }
 
   return (
-    <div className="container py-8 max-w-6xl">
+    <div className="max-w-6xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Dispute Workspace</h1>
         <Badge variant="secondary">{disputes.filter((d) => d.status === "OPEN" || d.status === "IN_PROGRESS").length} active</Badge>

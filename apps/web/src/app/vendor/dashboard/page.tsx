@@ -7,18 +7,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function VendorDashboardPage() {
   const [analytics, setAnalytics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("horsey_access_token")
-    const base = API_BASE
-    fetch(`${base}/vendors/me/analytics`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { setAnalytics(data); setLoading(false) })
+    apiClient.get("/vendors/me/analytics")
+      .then((r) => { setAnalytics(r.data?.data ?? null); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -30,7 +27,7 @@ export default function VendorDashboardPage() {
   ] : []
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
         <div className="flex gap-2">

@@ -40,5 +40,5 @@ export const authOptions: NextAuthOptions = {
       return true
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || "horsey-nextauth-secret-dev",
+  secret: process.env.NEXTAUTH_SECRET,
 }

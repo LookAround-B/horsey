@@ -11,6 +11,8 @@ export const ENDPOINTS = {
   // Users
   ME: '/users/me',
   USER: (id: string) => `/users/${id}`,
+  MY_ADDRESSES: '/users/me/addresses',
+  MY_ADDRESS: (id: string) => `/users/me/addresses/${id}`,
 
   // Products & Catalog
   PRODUCTS_SEARCH: '/products/search',

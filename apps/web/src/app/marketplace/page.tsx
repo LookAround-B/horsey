@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const CATEGORIES = [
   { slug: "all", name: "All Categories" },
@@ -86,12 +86,10 @@ function MarketplaceContent() {
       params.set("page", String(page))
       params.set("pageSize", "24")
 
-      const base = API_BASE
-      const res = await fetch(`${base}/products/search?${params}`)
-      const json = await res.json()
-      const payload = json?.data ?? json
-      setProducts(payload.data ?? [])
-      setTotal(payload.total ?? 0)
+      const res = await apiClient.get(`/products/search?${params}`)
+      const body = res.data?.data
+      setProducts(Array.isArray(body?.data) ? body.data : [])
+      setTotal(body?.total ?? 0)
     } catch {
       setProducts([])
     } finally {

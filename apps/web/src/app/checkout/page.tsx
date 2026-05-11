@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle, AlertCircle } from "lucide-react"
+import Link from "next/link"
+import { CheckCircle, AlertCircle, MapPin } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<any>(null)
@@ -23,20 +25,19 @@ export default function CheckoutPage() {
   const [subOrderNotes, setSubOrderNotes] = useState<Record<string, string>>({})
   const router = useRouter()
 
-  const token = () => localStorage.getItem("horsey_access_token")
-  const base = API_BASE
-
   useEffect(() => {
     Promise.all([
-      fetch(`${base}/cart`, { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()),
-      fetch(`${base}/users/me/addresses`, { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()).catch(() => []),
-    ]).then(([cartData, addrData]) => {
+      apiClient.get("/cart").catch(() => null),
+      apiClient.get("/users/me/addresses").catch(() => null),
+    ]).then(([cartRes, addrRes]) => {
+      const cartData = cartRes?.data?.data ?? null
+      const addrList = addrRes?.data?.data ?? []
       setCart(cartData)
-      setAddresses(Array.isArray(addrData) ? addrData : [])
-      const def = addrData?.find((a: any) => a.isDefault)
+      setAddresses(Array.isArray(addrList) ? addrList : [])
+      const def = Array.isArray(addrList) ? addrList.find((a: any) => a.isDefault) : null
       if (def) setSelectedAddress(def.id)
       const hasHorse = cartData?.items?.some((i: any) => i.product?.category?.slug === "horses")
-      setHorsePurchase(hasHorse)
+      setHorsePurchase(!!hasHorse)
     })
   }, [])
 
@@ -51,8 +52,14 @@ export default function CheckoutPage() {
   }, 0) ?? 0
 
   const placeOrder = async () => {
-    if (!selectedAddress) { alert("Please select a delivery address"); return }
-    if (horsePurchase && !attestation) { alert("Please confirm the live animal attestation"); return }
+    if (!selectedAddress) {
+      toast.error("Please select a delivery address before placing your order")
+      return
+    }
+    if (horsePurchase && !attestation) {
+      toast.error("Please confirm the live animal purchase attestation")
+      return
+    }
     setPlacing(true)
     try {
       const subOrders = Object.entries(vendorGroups).map(([vendorId]) => ({
@@ -63,12 +70,10 @@ export default function CheckoutPage() {
         vetCheckRequested: horsePurchase ? vetCheckRequested : false,
         escrowRequested: horsePurchase ? escrowRequested : false,
       }))
-      const res = await fetch(`${base}/orders/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ subOrders }),
-      })
-      if (res.ok) { setDone(true) }
+      await apiClient.post("/orders/checkout", { subOrders })
+      setDone(true)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to place order. Please try again.")
     } finally {
       setPlacing(false)
     }
@@ -96,7 +101,16 @@ export default function CheckoutPage() {
             <CardContent className="p-4 space-y-3">
               <h3 className="font-semibold">Delivery Address</h3>
               {addresses.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No saved addresses. Add one in your profile.</div>
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <MapPin className="w-10 h-10 text-muted-foreground/40" />
+                  <div>
+                    <p className="text-sm font-medium">No saved addresses</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add a shipping address to your profile before checking out.</p>
+                  </div>
+                  <Link href="/dashboard/profile">
+                    <Button size="sm" variant="outline">Add Address in Profile</Button>
+                  </Link>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {addresses.map((addr: any) => (
@@ -108,6 +122,9 @@ export default function CheckoutPage() {
                       </div>
                     </label>
                   ))}
+                  <Link href="/dashboard/profile" className="inline-flex">
+                    <Button size="sm" variant="ghost" className="text-xs text-muted-foreground h-7 px-2">+ Add another address</Button>
+                  </Link>
                 </div>
               )}
             </CardContent>
@@ -195,10 +212,13 @@ export default function CheckoutPage() {
               <Button
                 className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white"
                 onClick={placeOrder}
-                disabled={placing}
+                disabled={placing || addresses.length === 0}
               >
                 {placing ? "Placing Order…" : "Place Order & Authorize Payment"}
               </Button>
+              {addresses.length === 0 && (
+                <p className="text-xs text-center text-muted-foreground">Add an address to continue</p>
+              )}
             </CardContent>
           </Card>
         </div>

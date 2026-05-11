@@ -6,24 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function VendorPayoutsPage() {
   const [payouts, setPayouts] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   useEffect(() => {
     Promise.all([
-      fetch(`${base}/vendors/me/payouts`, { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()),
-      fetch(`${base}/vendors/me/analytics`, { headers: { Authorization: `Bearer ${token()}` } }).then((r) => r.json()),
+      apiClient.get("/vendors/me/payouts").catch(() => null),
+      apiClient.get("/vendors/me/analytics").catch(() => null),
     ])
-      .then(([payoutData, statsData]) => {
-        setPayouts(Array.isArray(payoutData) ? payoutData : payoutData?.data ?? [])
-        setStats(statsData)
+      .then(([payoutsRes, statsRes]) => {
+        // strip TransformInterceptor envelope
+        const payBody = payoutsRes?.data?.data  // { data: [...], total }
+        const raw = payBody?.data ?? payBody ?? []
+        setPayouts(Array.isArray(raw) ? raw : [])
+        setStats(statsRes?.data?.data ?? null)
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -39,7 +39,7 @@ export default function VendorPayoutsPage() {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-4xl">
+      <div className="max-w-4xl">
         <Skeleton className="h-8 w-32 mb-6" />
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
@@ -50,7 +50,7 @@ export default function VendorPayoutsPage() {
   }
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Payouts</h1>
         <Button variant="outline" size="sm" className="gap-1.5 text-xs">

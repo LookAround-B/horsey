@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCountdown, getRemainingMs, getSlaZone } from "shared"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const DECLINE_REASONS = ["Out of stock", "Cannot fulfil in time", "Buyer did not meet requirements", "Other"]
 
@@ -40,13 +40,11 @@ export default function VendorOrdersPage() {
   const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
   const [showTrackingFor, setShowTrackingFor] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("horsey_access_token")
-  const base = API_BASE
-
   const fetchOrders = async () => {
-    const res = await fetch(`${base}/vendor/orders?pageSize=50`, { headers: { Authorization: `Bearer ${token()}` } })
-    const data = await res.json()
-    setSubOrders(data.data ?? [])
+    const res = await apiClient.get("/vendor/orders?pageSize=50")
+    const body = res.data?.data  // { data: [...], total }
+    const raw = body?.data ?? body ?? []
+    setSubOrders(Array.isArray(raw) ? raw : [])
     setLoading(false)
   }
 
@@ -54,7 +52,7 @@ export default function VendorOrdersPage() {
 
   const accept = async (id: string) => {
     setActionLoading(id)
-    await fetch(`${base}/sub-orders/${id}/accept`, { method: "PATCH", headers: { Authorization: `Bearer ${token()}` } })
+    await apiClient.patch(`/sub-orders/${id}/accept`)
     await fetchOrders()
     setActionLoading(null)
   }
@@ -63,11 +61,7 @@ export default function VendorOrdersPage() {
     const reason = declineReason[id]
     if (!reason) { alert("Please select a decline reason"); return }
     setActionLoading(id)
-    await fetch(`${base}/sub-orders/${id}/decline`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ reason }),
-    })
+    await apiClient.patch(`/sub-orders/${id}/decline`, { reason })
     await fetchOrders()
     setActionLoading(null)
   }
@@ -76,11 +70,7 @@ export default function VendorOrdersPage() {
     const trackingNumber = trackingInputs[id]
     if (!trackingNumber?.trim()) { alert("Please enter a tracking number"); return }
     setActionLoading(id)
-    await fetch(`${base}/sub-orders/${id}/ship`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ trackingNumber: trackingNumber.trim() }),
-    })
+    await apiClient.patch(`/sub-orders/${id}/ship`, { trackingNumber: trackingNumber.trim() })
     setShowTrackingFor(null)
     await fetchOrders()
     setActionLoading(null)
@@ -88,10 +78,7 @@ export default function VendorOrdersPage() {
 
   const confirmDelivery = async (id: string) => {
     setActionLoading(id)
-    await fetch(`${base}/sub-orders/${id}/deliver`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token()}` },
-    })
+    await apiClient.patch(`/sub-orders/${id}/deliver`)
     await fetchOrders()
     setActionLoading(null)
   }
@@ -103,7 +90,7 @@ export default function VendorOrdersPage() {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-4xl">
+      <div className="max-w-4xl">
         <Skeleton className="h-8 w-40 mb-6" />
         {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40 w-full mb-4 rounded-xl" />)}
       </div>
@@ -111,7 +98,7 @@ export default function VendorOrdersPage() {
   }
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Order Inbox</h1>
         <div className="flex gap-2">

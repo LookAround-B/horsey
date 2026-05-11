@@ -31,6 +31,27 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+function clearAuthAndRedirect() {
+  localStorage.removeItem('horsey_access_token');
+  localStorage.removeItem('horsey_refresh_token');
+  // Clear the zustand persist key so it rehydrates as unauthenticated on reload
+  try {
+    const stored = JSON.parse(localStorage.getItem('horsey-auth') || '{}');
+    if (stored.state) {
+      stored.state.isAuthenticated = false;
+      stored.state.user = null;
+      stored.state.accessToken = null;
+      localStorage.setItem('horsey-auth', JSON.stringify(stored));
+    }
+  } catch {}
+  if (typeof document !== 'undefined') {
+    document.cookie = 'horsey_role=; path=/; max-age=0';
+  }
+  if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -54,11 +75,7 @@ apiClient.interceptors.response.use(
       const refreshToken = localStorage.getItem('horsey_refresh_token');
       if (!refreshToken) {
         isRefreshing = false;
-        // Redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('horsey_access_token');
-          localStorage.removeItem('horsey_refresh_token');
-        }
+        clearAuthAndRedirect();
         return Promise.reject(error);
       }
 
@@ -79,8 +96,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        localStorage.removeItem('horsey_access_token');
-        localStorage.removeItem('horsey_refresh_token');
+        clearAuthAndRedirect();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -1,13 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, UserX, Shield, ShieldOff, Eye, Users } from "lucide-react"
+import { Search, UserX, Users } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -15,17 +15,13 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   const fetchUsers = async () => {
     const params = new URLSearchParams({ pageSize: "50" })
     if (search.trim()) params.set("q", search.trim())
-    const res = await fetch(`${base}/admin/users?${params}`, {
-      headers: { Authorization: `Bearer ${token()}` },
-    })
-    const data = await res.json()
-    setUsers(data.data ?? data ?? [])
+    const res = await apiClient.get(`/admin/users?${params}`)
+    const body = res.data?.data  // strip TransformInterceptor envelope
+    const raw = body?.data ?? body ?? []
+    setUsers(Array.isArray(raw) ? raw : [])
     setLoading(false)
   }
 
@@ -39,10 +35,7 @@ export default function AdminUsersPage() {
 
   const suspendUser = async (userId: string) => {
     setActionLoading(userId)
-    await fetch(`${base}/admin/users/${userId}/suspend`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token()}` },
-    })
+    await apiClient.patch(`/admin/users/${userId}/suspend`)
     await fetchUsers()
     setActionLoading(null)
   }
@@ -55,7 +48,7 @@ export default function AdminUsersPage() {
 
   if (loading && !users.length) {
     return (
-      <div className="container py-8 max-w-5xl">
+      <div className="max-w-5xl">
         <Skeleton className="h-8 w-48 mb-6" />
         {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-16 mb-3 rounded-lg" />)}
       </div>
@@ -63,7 +56,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="container py-8 max-w-5xl">
+    <div className="max-w-5xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">User Management</h1>
         <Badge variant="secondary">{users.length} users</Badge>

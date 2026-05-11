@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Trophy, Loader2, Eye, EyeOff, ShoppingBag, Shield, Clock, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -29,8 +29,9 @@ const perks = [
   { icon: Star, title: "Trusted Reviews", description: "Real reviews from confirmed-purchase buyers." },
 ]
 
-export default function LoginPage() {
+function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { setAuth } = useAuthStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -57,7 +58,8 @@ export default function LoginPage() {
       }
       const data = json.data ?? json
       setAuth(data.user, data.accessToken, data.refreshToken)
-      router.push(data.user.role === "VENDOR" ? "/vendor/dashboard" : data.user.role === "ADMIN" ? "/admin/orders" : "/marketplace")
+      const from = searchParams.get('from')
+      router.push(from || "/dashboard")
     } catch {
       setError("Something went wrong. Please try again.")
     } finally {
@@ -177,5 +179,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPageWrapper() {
+  return (
+    <Suspense>
+      <LoginPage />
+    </Suspense>
   )
 }

@@ -5,7 +5,7 @@ import { Bell, Check, CheckCheck, Clock, Package, XCircle, Truck, AlertTriangle 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuthStore } from "@/stores"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const TYPE_ICONS: Record<string, any> = {
   ORDER_PLACED: Package,
@@ -28,19 +28,17 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   const fetchNotifications = async () => {
     if (!isAuthenticated) return
     setLoading(true)
     try {
       const [notifRes, countRes] = await Promise.all([
-        fetch(`${base}/notifications`, { headers: { Authorization: `Bearer ${token()}` } }),
-        fetch(`${base}/notifications/unread-count`, { headers: { Authorization: `Bearer ${token()}` } }),
+        apiClient.get("/notifications"),
+        apiClient.get("/notifications/unread-count"),
       ])
-      const notifs = await notifRes.json()
-      const count = await countRes.json()
+      // TransformInterceptor wraps: res.data.data = service result
+      const notifs = notifRes.data?.data
+      const count = countRes.data?.data
       setNotifications(Array.isArray(notifs) ? notifs : [])
       setUnreadCount(typeof count === "number" ? count : count?.count ?? 0)
     } catch {
@@ -66,20 +64,13 @@ export function NotificationBell() {
   }, [])
 
   const markAllRead = async () => {
-    await fetch(`${base}/notifications/mark-all-read`, {
-      method: "PATCH",
-      headers: { Authorization: `Bearer ${token()}` },
-    })
+    await apiClient.patch("/notifications/mark-all-read").catch(() => {})
     setUnreadCount(0)
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
   }
 
   const markRead = async (ids: string[]) => {
-    await fetch(`${base}/notifications/mark-read`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ ids }),
-    })
+    await apiClient.patch("/notifications/mark-read", { ids }).catch(() => {})
     setUnreadCount((c) => Math.max(0, c - ids.length))
     setNotifications((prev) => prev.map((n) => (ids.includes(n.id) ? { ...n, isRead: true } : n)))
   }

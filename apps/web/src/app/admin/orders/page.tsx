@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function AdminOrdersPage() {
   const [sla, setSla] = useState<any>(null)
@@ -16,21 +16,19 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("horsey_access_token")
-  const base = API_BASE
-
   const fetchData = async () => {
     setLoading(true)
     const params = new URLSearchParams({ pageSize: "50" })
     if (statusFilter !== "all") params.set("status", statusFilter)
     const [slaRes, ordersRes] = await Promise.all([
-      fetch(`${base}/admin/sla-dashboard`, { headers: { Authorization: `Bearer ${token()}` } }),
-      fetch(`${base}/admin/orders?${params}`, { headers: { Authorization: `Bearer ${token()}` } }),
+      apiClient.get("/admin/sla-dashboard").catch(() => null),
+      apiClient.get(`/admin/orders?${params}`).catch(() => null),
     ])
-    setSla(await slaRes.json())
-    const oData = await ordersRes.json()
-    const ordersData = Array.isArray(oData.data) ? oData.data : Array.isArray(oData) ? oData : []
-    setOrders(ordersData)
+    // strip TransformInterceptor envelope: res.data.data = service result
+    setSla(slaRes?.data?.data ?? null)
+    const oBody = ordersRes?.data?.data  // { data: [...], total }
+    const oData = oBody?.data ?? oBody ?? []
+    setOrders(Array.isArray(oData) ? oData : [])
     setLoading(false)
   }
 
@@ -38,13 +36,13 @@ export default function AdminOrdersPage() {
 
   const forceAction = async (id: string, action: "force-accept" | "force-cancel") => {
     setActionLoading(id)
-    await fetch(`${base}/admin/sub-orders/${id}/${action}`, { method: "PATCH", headers: { Authorization: `Bearer ${token()}` } })
+    await apiClient.patch(`/admin/sub-orders/${id}/${action}`)
     await fetchData()
     setActionLoading(null)
   }
 
   return (
-    <div className="container py-8 max-w-6xl">
+    <div className="max-w-6xl">
       <h1 className="text-2xl font-bold mb-6">Order Oversight</h1>
 
       {/* SLA Dashboard */}

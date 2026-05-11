@@ -3,8 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { SessionProvider } from '@/components/providers/session-provider'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { AuthBootstrapper } from '@/components/providers/auth-bootstrapper'
 import { Navbar } from '@/components/features/navbar'
-import { Footer } from '@/components/features/footer'
 import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({
@@ -14,14 +14,14 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Horsey — Indian Equestrian Platform',
+    default: 'Horsey — Horse Marketplace',
     template: '%s | Horsey',
   },
   description:
-    'Discover equestrian events, FEI/EFI compliant competition scoring, horse marketplace, and stable management across India.',
+    'India\'s unified marketplace for buying horses, feed, tack, grooming supplies, and stable equipment — with a guaranteed 24-hour vendor acceptance SLA on every order.',
   keywords: [
-    'equestrian', 'horse', 'dressage', 'show jumping', 'tent pegging',
-    'EFI', 'FEI', 'India', 'competition', 'scoring',
+    'horse marketplace', 'buy horse India', 'horse feed', 'tack accessories',
+    'equestrian supplies', 'horse breeder', 'KYC verified vendors', 'horse sale India',
   ],
 }
 
@@ -35,10 +35,10 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans`}>
         <SessionProvider>
           <QueryProvider>
+            <AuthBootstrapper />
             <div className="relative flex min-h-screen flex-col">
               <Navbar />
               <main className="flex-1">{children}</main>
-              <Footer />
             </div>
             <Toaster position="top-right" richColors />
           </QueryProvider>

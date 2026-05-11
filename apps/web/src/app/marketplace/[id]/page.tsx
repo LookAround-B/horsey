@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function ProductDetailPage() {
   const { id } = useParams()
@@ -22,23 +22,15 @@ export default function ProductDetailPage() {
   const [addingToCart, setAddingToCart] = useState(false)
 
   useEffect(() => {
-    const base = API_BASE
-    fetch(`${base}/products/${id}`)
-      .then((r) => r.json())
-      .then((data) => { setProduct(data); setLoading(false) })
+    apiClient.get(`/products/${id}`)
+      .then((r) => { setProduct(r.data?.data ?? null); setLoading(false) })
       .catch(() => setLoading(false))
   }, [id])
 
   const handleAddToCart = async () => {
     setAddingToCart(true)
     try {
-      const token = localStorage.getItem("horsey_access_token")
-      const base = API_BASE
-      await fetch(`${base}/cart/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ productId: id, variantId: selectedVariant, quantity }),
-      })
+      await apiClient.post("/cart/items", { productId: id, variantId: selectedVariant, quantity })
       router.push("/cart")
     } finally {
       setAddingToCart(false)

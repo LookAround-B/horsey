@@ -58,8 +58,10 @@ export class VendorService {
 
   // ─── Admin Actions ──────────────────────────────────────────────────────────
 
-  async listPendingApplications(page = 1, pageSize = 20) {
-    const skip = (page - 1) * pageSize;
+  async listPendingApplications(page: number = 1, pageSize: number = 20) {
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 20);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.vendor.findMany({
         where: { status: VendorStatus.PENDING },
@@ -68,12 +70,12 @@ export class VendorService {
           kycDocuments: true,
         },
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.vendor.count({ where: { status: VendorStatus.PENDING } }),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 
   async reviewApplication(adminId: string, vendorId: string, dto: ReviewVendorDto) {
@@ -198,20 +200,22 @@ export class VendorService {
       avgAcceptanceHours: Math.round(avgAcceptanceMs / (1000 * 60 * 60)),
     };
   }
-  async getVendorPayouts(userId: string, page = 1, pageSize = 50) {
+  async getVendorPayouts(userId: string, page: number = 1, pageSize: number = 50) {
     const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
     if (!vendor) throw new NotFoundException('Vendor profile not found');
 
-    const skip = (page - 1) * pageSize;
+    const p = Math.max(1, Number(page) || 1);
+    const ps = Math.max(1, Number(pageSize) || 50);
+    const skip = (p - 1) * ps;
     const [data, total] = await Promise.all([
       this.prisma.payout.findMany({
         where: { vendorId: vendor.id },
         skip,
-        take: pageSize,
+        take: ps,
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.payout.count({ where: { vendorId: vendor.id } }),
     ]);
-    return { data, total, page, pageSize };
+    return { data, total };
   }
 }

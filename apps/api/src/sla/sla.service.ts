@@ -32,6 +32,10 @@ export class SlaService implements OnModuleInit, OnModuleDestroy {
 
     await this.boss.start();
 
+    // pg-boss v10+ requires queues to be explicitly created before use
+    await this.boss.createQueue(SLA_QUEUE.REMINDER);
+    await this.boss.createQueue(SLA_QUEUE.AUTO_CANCEL);
+
     // Register handlers
     await this.boss.work<{ subOrderId: string; type: string }>(SLA_QUEUE.REMINDER, async ([job]) => {
       await this.handleReminder(job.data);

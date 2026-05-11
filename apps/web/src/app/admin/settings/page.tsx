@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 const DEFAULT_SETTINGS = [
   { key: "sla_window_hours", label: "Default SLA Window", description: "Hours vendors have to accept/decline orders", unit: "hours", icon: Clock, defaultValue: "24" },
@@ -23,21 +23,15 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   useEffect(() => {
-    fetch(`${base}/admin/settings`, { headers: { Authorization: `Bearer ${token()}` } })
-      .then((r) => r.json())
-      .then((data) => {
+    apiClient.get("/admin/settings")
+      .then((res) => {
+        const list = res.data?.data  // TransformInterceptor: res.data.data = array of settings
         const map: Record<string, string> = {}
-        if (Array.isArray(data)) {
-          data.forEach((s: any) => { map[s.key] = s.value })
+        if (Array.isArray(list)) {
+          list.forEach((s: any) => { map[s.key] = s.value })
         }
-        // Fill defaults for missing settings
-        DEFAULT_SETTINGS.forEach((s) => {
-          if (!map[s.key]) map[s.key] = s.defaultValue
-        })
+        DEFAULT_SETTINGS.forEach((s) => { if (!map[s.key]) map[s.key] = s.defaultValue })
         setSettings(map)
         setLoading(false)
       })
@@ -53,11 +47,7 @@ export default function AdminSettingsPage() {
     setSaving(true)
     setSaved(false)
     try {
-      await fetch(`${base}/admin/settings`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-        body: JSON.stringify({ settings }),
-      })
+      await apiClient.put("/admin/settings", { settings })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {}
@@ -66,7 +56,7 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-3xl">
+      <div className="max-w-3xl">
         <Skeleton className="h-8 w-48 mb-6" />
         {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 mb-4 rounded-xl" />)}
       </div>
@@ -74,7 +64,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="container py-8 max-w-3xl">
+    <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Platform Settings</h1>

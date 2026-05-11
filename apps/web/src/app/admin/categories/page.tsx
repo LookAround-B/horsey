@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { API_BASE } from "@/lib/api"
+import apiClient from "@/lib/api/client"
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([])
@@ -18,13 +18,10 @@ export default function AdminCategoriesPage() {
   const [form, setForm] = useState({ name: "", slug: "", slaHours: "24" })
   const [saving, setSaving] = useState(false)
 
-  const base = API_BASE
-  const token = () => localStorage.getItem("horsey_access_token")
-
   const fetchCategories = async () => {
-    const res = await fetch(`${base}/products/categories`)
-    const data = await res.json()
-    setCategories(Array.isArray(data) ? data : [])
+    const res = await apiClient.get("/products/categories")
+    const body = res.data?.data  // strip envelope; categories endpoint returns array directly
+    setCategories(Array.isArray(body) ? body : [])
     setLoading(false)
   }
 
@@ -32,10 +29,7 @@ export default function AdminCategoriesPage() {
 
   const seedDefaults = async () => {
     setSaving(true)
-    await fetch(`${base}/products/admin/seed-categories`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token()}` },
-    })
+    await apiClient.post("/products/admin/seed-categories")
     await fetchCategories()
     setSaving(false)
   }
@@ -54,13 +48,12 @@ export default function AdminCategoriesPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    const method = editing ? "PATCH" : "POST"
-    const url = editing ? `${base}/admin/categories/${editing.id}` : `${base}/admin/categories`
-    await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ name: form.name, slug: form.slug, slaHours: parseInt(form.slaHours) }),
-    })
+    const body = { name: form.name, slug: form.slug, slaHours: parseInt(form.slaHours) }
+    if (editing) {
+      await apiClient.patch(`/admin/categories/${editing.id}`, body)
+    } else {
+      await apiClient.post("/admin/categories", body)
+    }
     await fetchCategories()
     setEditing(null)
     setCreating(false)
@@ -69,7 +62,7 @@ export default function AdminCategoriesPage() {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-4xl">
+      <div className="max-w-4xl">
         <Skeleton className="h-8 w-48 mb-6" />
         {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-16 mb-3 rounded-lg" />)}
       </div>
@@ -77,7 +70,7 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Category Management</h1>
         <div className="flex gap-2">

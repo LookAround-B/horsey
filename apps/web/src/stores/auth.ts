@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import apiClient from '@/lib/api/client';
+
 import { ENDPOINTS } from '@/lib/api/endpoints';
 
 interface User {
@@ -26,7 +26,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       accessToken: null,
       isAuthenticated: false,
@@ -35,18 +35,25 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (user, accessToken, refreshToken) => {
         localStorage.setItem('horsey_access_token', accessToken);
         localStorage.setItem('horsey_refresh_token', refreshToken);
+        // Cookie lets middleware do server-side route protection
+        document.cookie = `horsey_role=${user.role}; path=/; max-age=604800; SameSite=Lax`;
         set({ user, accessToken, isAuthenticated: true, isLoading: false });
       },
 
       logout: async () => {
-        try {
-          await apiClient.post(ENDPOINTS.LOGOUT);
-        } catch {
-          // Ignore logout errors
-        }
+        // Clear local state first so any in-flight rehydration sees unauthenticated state
+        const token = localStorage.getItem('horsey_access_token');
         localStorage.removeItem('horsey_access_token');
         localStorage.removeItem('horsey_refresh_token');
+        document.cookie = 'horsey_role=; path=/; max-age=0';
         set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false });
+        // Fire-and-forget server logout — use raw fetch to avoid the 401 interceptor loop
+        if (token) {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'}${ENDPOINTS.LOGOUT}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => {});
+        }
       },
 
       setUser: (user) => set({ user }),
