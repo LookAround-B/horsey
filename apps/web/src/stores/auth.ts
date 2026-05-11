@@ -49,7 +49,8 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, accessToken: null, isAuthenticated: false, isLoading: false });
         // Fire-and-forget server logout — use raw fetch to avoid the 401 interceptor loop
         if (token) {
-          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'}${ENDPOINTS.LOGOUT}`, {
+          // Use /api/proxy to avoid mixed-content errors in browser
+          fetch(`/api/proxy${ENDPOINTS.LOGOUT}`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
           }).catch(() => {});
