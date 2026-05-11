@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { API_BASE } from "@/lib/api"
 
 export default function CheckoutPage() {
   const [cart, setCart] = useState<any>(null)
@@ -17,10 +18,13 @@ export default function CheckoutPage() {
   const [done, setDone] = useState(false)
   const [horsePurchase, setHorsePurchase] = useState(false)
   const [attestation, setAttestation] = useState(false)
+  const [vetCheckRequested, setVetCheckRequested] = useState(false)
+  const [escrowRequested, setEscrowRequested] = useState(false)
+  const [subOrderNotes, setSubOrderNotes] = useState<Record<string, string>>({})
   const router = useRouter()
 
-  const token = () => localStorage.getItem("accessToken")
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+  const token = () => localStorage.getItem("horsey_access_token")
+  const base = API_BASE
 
   useEffect(() => {
     Promise.all([
@@ -54,7 +58,10 @@ export default function CheckoutPage() {
       const subOrders = Object.entries(vendorGroups).map(([vendorId]) => ({
         vendorId,
         addressId: selectedAddress,
+        notes: subOrderNotes[vendorId] || undefined,
         buyerAttestation: horsePurchase ? attestation : false,
+        vetCheckRequested: horsePurchase ? vetCheckRequested : false,
+        escrowRequested: horsePurchase ? escrowRequested : false,
       }))
       const res = await fetch(`${base}/orders/checkout`, {
         method: "POST",
@@ -123,6 +130,15 @@ export default function CheckoutPage() {
                     <span className="font-medium">₹{(Number(item.variant?.price ?? item.product?.price ?? 0) * item.quantity).toLocaleString("en-IN")}</span>
                   </div>
                 ))}
+                <div className="pt-2">
+                  <Label className="text-xs text-muted-foreground">Order notes for this vendor (optional)</Label>
+                  <Input
+                    placeholder="Special instructions…"
+                    value={subOrderNotes[vendorId] ?? ""}
+                    onChange={(e) => setSubOrderNotes((prev) => ({ ...prev, [vendorId]: e.target.value }))}
+                    className="mt-1 text-sm"
+                  />
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -141,6 +157,14 @@ export default function CheckoutPage() {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={attestation} onChange={(e) => setAttestation(e.target.checked)} className="rounded" />
                   <span className="text-sm font-medium">I confirm and agree to the live animal purchase terms</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={vetCheckRequested} onChange={(e) => setVetCheckRequested(e.target.checked)} className="rounded" />
+                  <span className="text-sm">Request vet check before transport</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={escrowRequested} onChange={(e) => setEscrowRequested(e.target.checked)} className="rounded" />
+                  <span className="text-sm">Use escrow payment (recommended for high-value purchases)</span>
                 </label>
               </CardContent>
             </Card>

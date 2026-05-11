@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores"
 import { cn } from "@/lib/utils"
+import { NotificationBell } from "./notification-bell"
 
 const navLinks = [
   { href: "/marketplace", label: "Marketplace", icon: Store },
@@ -97,6 +98,7 @@ export function Navbar() {
                   </Button>
                 </Link>
               )}
+              <NotificationBell />
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xs font-bold">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
@@ -161,6 +163,10 @@ export function Navbar() {
             ))}
             {isAuthenticated && (
               <>
+                <div className="flex items-center justify-between px-4 py-2">
+                  <span className="text-sm text-muted-foreground">Notifications</span>
+                  <NotificationBell />
+                </div>
                 <div className="h-px bg-border my-2" />
                 {(user?.role === 'VENDOR' ? vendorLinks : user?.role === 'ADMIN' ? adminLinks : buyerLinks).map((link) => (
                   <Link

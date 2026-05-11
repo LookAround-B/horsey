@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Search, ShoppingCart, ChevronRight } from "lucide-react"
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { API_BASE } from "@/lib/api"
 
 const CATEGORIES = [
   { slug: "all", name: "All Categories" },
@@ -58,12 +59,14 @@ function ProductCard({ product }: { product: any }) {
   )
 }
 
-export default function MarketplacePage() {
+function MarketplaceContent() {
   const [q, setQ] = useState("")
   const [category, setCategory] = useState("all")
   const [sort, setSort] = useState("newest")
   const [minPrice, setMinPrice] = useState("")
   const [maxPrice, setMaxPrice] = useState("")
+  const [breed, setBreed] = useState("")
+  const [discipline, setDiscipline] = useState("")
   const [products, setProducts] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -78,14 +81,17 @@ export default function MarketplacePage() {
       if (sort) params.set("sort", sort)
       if (minPrice) params.set("minPrice", minPrice)
       if (maxPrice) params.set("maxPrice", maxPrice)
+      if (breed) params.set("breed", breed)
+      if (discipline) params.set("discipline", discipline)
       params.set("page", String(page))
       params.set("pageSize", "24")
 
-      const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+      const base = API_BASE
       const res = await fetch(`${base}/products/search?${params}`)
-      const data = await res.json()
-      setProducts(data.data ?? [])
-      setTotal(data.total ?? 0)
+      const json = await res.json()
+      const payload = json?.data ?? json
+      setProducts(payload.data ?? [])
+      setTotal(payload.total ?? 0)
     } catch {
       setProducts([])
     } finally {
@@ -93,7 +99,7 @@ export default function MarketplacePage() {
     }
   }
 
-  useEffect(() => { fetchProducts() }, [category, sort, page])
+  useEffect(() => { fetchProducts() }, [category, sort, page, breed, discipline])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -138,8 +144,33 @@ export default function MarketplacePage() {
               <SelectItem value="newest">Newest</SelectItem>
               <SelectItem value="price_asc">Price: Low → High</SelectItem>
               <SelectItem value="price_desc">Price: High → Low</SelectItem>
+              <SelectItem value="best_rated">Best Rated</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Breed filter (visible when Horses selected) */}
+          {category === "horses" && (
+            <Input
+              placeholder="Breed…"
+              className="w-32"
+              value={breed}
+              onChange={(e) => setBreed(e.target.value)}
+            />
+          )}
+
+          {/* Discipline filter */}
+          {(category === "tack-accessories" || category === "horses" || category === "all") && (
+            <Select value={discipline} onValueChange={(v) => { setDiscipline(v === "any" ? "" : v); setPage(1) }}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Discipline" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Any Discipline</SelectItem>
+                <SelectItem value="English">English</SelectItem>
+                <SelectItem value="Western">Western</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           <div className="flex gap-2 items-center">
             <Input placeholder="Min ₹" className="w-24" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} type="number" />
@@ -168,7 +199,7 @@ export default function MarketplacePage() {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {products.map((p) => <ProductCard key={p.id} product={p} />)}
+              {Array.isArray(products) && products.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
             <div className="flex justify-center gap-2 mt-4">
               <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
@@ -179,5 +210,13 @@ export default function MarketplacePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={<div className="container py-8 flex justify-center"><Skeleton className="h-10 w-32" /></div>}>
+      <MarketplaceContent />
+    </Suspense>
   )
 }

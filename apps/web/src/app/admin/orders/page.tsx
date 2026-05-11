@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { API_BASE } from "@/lib/api"
 
 export default function AdminOrdersPage() {
   const [sla, setSla] = useState<any>(null)
@@ -15,8 +16,8 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("accessToken")
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+  const token = () => localStorage.getItem("horsey_access_token")
+  const base = API_BASE
 
   const fetchData = async () => {
     setLoading(true)
@@ -28,7 +29,8 @@ export default function AdminOrdersPage() {
     ])
     setSla(await slaRes.json())
     const oData = await ordersRes.json()
-    setOrders(oData.data ?? [])
+    const ordersData = Array.isArray(oData.data) ? oData.data : Array.isArray(oData) ? oData : []
+    setOrders(ordersData)
     setLoading(false)
   }
 

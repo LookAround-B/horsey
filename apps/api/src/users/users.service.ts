@@ -15,7 +15,7 @@ export class UsersService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    const { passwordHash, refreshToken, ...rest } = user;
+    const { passwordHash, mfaSecret, mfaBackupCodes, emailVerifyToken, passwordResetToken, ...rest } = user;
     return rest;
   }
 
@@ -42,7 +42,7 @@ export class UsersService {
         ...(dto.fcmToken && { fcmToken: dto.fcmToken }),
       },
     });
-    const { passwordHash, refreshToken, ...rest } = user;
+    const { passwordHash, mfaSecret, mfaBackupCodes, emailVerifyToken, passwordResetToken, ...rest } = user;
     return rest;
   }
 }

@@ -1,10 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { Trophy, Loader2, ShieldCheck, Award, MapPin, BarChart3 } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { Trophy, Loader2, Eye, EyeOff, ShoppingBag, Shield, Clock, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useAuthStore } from "@/stores"
+import { API_BASE } from "@/lib/api"
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -17,101 +22,156 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-const features = [
-  {
-    icon: Award,
-    title: "FEI/EFI Compliant",
-    description: "Official scoring systems for Dressage, Show Jumping & Tent Pegging",
-  },
-  {
-    icon: MapPin,
-    title: "Event Discovery",
-    description: "Find REL events across all 6 regional zones of India",
-  },
-  {
-    icon: BarChart3,
-    title: "Live Scoring",
-    description: "Real-time leaderboards with MER tracking for JNEC/NEC qualification",
-  },
-  {
-    icon: ShieldCheck,
-    title: "MER Records",
-    description: "Track Minimum Entry Requirements across disciplines & venues",
-  },
+const perks = [
+  { icon: ShoppingBag, title: "Multi-Vendor Cart", description: "Shop from multiple sellers in a single checkout." },
+  { icon: Shield, title: "Verified Vendors", description: "Every seller is KYC-verified before listing." },
+  { icon: Clock, title: "24-Hour SLA", description: "Vendors must respond within 24h or you get auto-refunded." },
+  { icon: Star, title: "Trusted Reviews", description: "Real reviews from confirmed-purchase buyers." },
 ]
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { setAuth } = useAuthStore()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleGoogleSignIn = () => {
+  const base = API_BASE
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
     setLoading(true)
-    signIn("google", { callbackUrl: "/auth/callback" })
+    try {
+      const res = await fetch(`${base}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.message || json.data?.message || "Invalid email or password")
+        return
+      }
+      const data = json.data ?? json
+      setAuth(data.user, data.accessToken, data.refreshToken)
+      router.push(data.user.role === "VENDOR" ? "/vendor/dashboard" : data.user.role === "ADMIN" ? "/admin/orders" : "/marketplace")
+    } catch {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setError("Google login requires OAuth setup. Use email + password for now.")
   }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
-      {/* Background Effects */}
       <div className="absolute inset-0 gradient-bg pointer-events-none" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-500/5 rounded-full blur-3xl animate-pulse" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
 
       <div className="relative w-full max-w-lg space-y-6">
-        {/* Main Auth Card */}
         <Card className="glass-card overflow-hidden">
           <CardHeader className="text-center space-y-4 pb-2">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mx-auto shadow-lg shadow-orange-500/25 transition-transform hover:scale-105">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center mx-auto shadow-lg shadow-orange-500/25">
               <Trophy className="w-8 h-8 text-white" />
             </div>
             <div>
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
-                Welcome to Horsey
-              </CardTitle>
+              <CardTitle className="text-3xl font-bold gradient-text">Welcome to Horsey</CardTitle>
               <CardDescription className="mt-2 text-base">
-                India&apos;s premier equestrian platform — EFI REL 2026 compliant
+                India&apos;s premier equestrian marketplace
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="pt-6 pb-8 px-8 space-y-6">
-            {/* Google Sign-In Button */}
+          <CardContent className="pt-6 pb-8 px-8 space-y-5">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="rider@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPw ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(!showPw)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="flex justify-end">
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg gap-2"
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/40" /></div>
+              <div className="relative flex justify-center text-xs text-muted-foreground"><span className="bg-card px-3">or</span></div>
+            </div>
+
             <Button
-              id="google-sign-in-btn"
               type="button"
               variant="outline"
-              className="w-full h-13 gap-3 text-base font-medium border-border/60 hover:bg-muted/50 hover:border-orange-500/30 transition-all duration-300 group"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
+              className="w-full gap-3 border-border/60 hover:border-orange-500/30"
+              onClick={handleGoogleLogin}
             >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <GoogleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  Continue with Google
-                </>
-              )}
+              <GoogleIcon className="w-5 h-5" />
+              Continue with Google
             </Button>
 
-            <p className="text-xs text-center text-muted-foreground leading-relaxed">
-              Sign in with your Google account to access events, scoring, marketplace, and more.
-              <br />
-              By signing in, you agree to Horsey&apos;s{" "}
-              <span className="text-foreground/80 hover:underline cursor-pointer">Terms of Service</span> and{" "}
-              <span className="text-foreground/80 hover:underline cursor-pointer">Privacy Policy</span>
+            <p className="text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="text-primary font-medium hover:underline">
+                Create one
+              </Link>
             </p>
           </CardContent>
         </Card>
 
-        {/* Feature Highlights */}
         <div className="grid grid-cols-2 gap-3">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group p-4 rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm hover:border-orange-500/30 hover:bg-card/80 transition-all duration-300"
-            >
-              <feature.icon className="w-5 h-5 text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
-              <h3 className="text-sm font-semibold mb-1">{feature.title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{feature.description}</p>
+          {perks.map((p) => (
+            <div key={p.title} className="p-4 rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm">
+              <p.icon className="w-5 h-5 text-orange-400 mb-2" />
+              <h3 className="text-sm font-semibold mb-1">{p.title}</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">{p.description}</p>
             </div>
           ))}
         </div>

@@ -6,7 +6,7 @@
  * - 2 Approved Vendors (Feed & Tack Co. + Sharma Stud Farm)
  * - 2 Buyers (Priya Mehta + Rajput Stables)
  * - Default product categories (5)
- * - Sample products per category
+ * - Sample products per category with cover images
  */
 
 import { PrismaClient, UserRole, VendorStatus, ListingStatus } from '@prisma/client';
@@ -72,12 +72,12 @@ async function main() {
     }),
   ]);
 
-  const [horsesCat, feedCat, tackCat] = categories;
+  const [horsesCat, feedCat, tackCat, groomingCat, stableCat] = categories;
   console.log('✅ Categories seeded');
 
   // ─── Admin ──────────────────────────────────────────────────────────────────
 
-  const admin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@horsey.in' },
     create: {
       email: 'admin@horsey.in',
@@ -169,7 +169,6 @@ async function main() {
     update: {},
   });
 
-  // Default addresses
   await prisma.address.upsert({
     where: { id: 'addr_priya_1' },
     create: {
@@ -204,12 +203,38 @@ async function main() {
 
   console.log('✅ Buyers seeded');
 
-  // ─── Sample Products ───────────────────────────────────────────────────────
+  // ─── Products ──────────────────────────────────────────────────────────────
+  // helper: upsert a product then set its media (delete + recreate for idempotency)
+  async function upsertProduct(
+    data: Parameters<typeof prisma.product.upsert>[0]['create'] & { id: string },
+    mediaUrls: string[] = [],
+  ) {
+    const { id, ...rest } = data;
+    const product = await prisma.product.upsert({
+      where: { id },
+      create: { id, ...rest },
+      update: {},
+    });
 
-  // Horse listing (Sharma Stud Farm)
-  await prisma.product.upsert({
-    where: { id: 'prod_horse_1' },
-    create: {
+    if (mediaUrls.length) {
+      await prisma.productMedia.deleteMany({ where: { productId: product.id } });
+      await prisma.productMedia.createMany({
+        data: mediaUrls.map((url, order) => ({
+          productId: product.id,
+          url,
+          type: 'image',
+          order,
+        })),
+      });
+    }
+
+    return product;
+  }
+
+  // ── Horses ─────────────────────────────────────────────────────────────────
+
+  await upsertProduct(
+    {
       id: 'prod_horse_1',
       vendorId: vendor2.id,
       categoryId: horsesCat.id,
@@ -220,20 +245,49 @@ async function main() {
       inventory: 1,
       isFeatured: true,
       freightRequired: false,
-      attributes: {
-        breed: 'Marwari',
-        lineage: 'Sire: Sultan of Marwar, Dam: Rajkumari',
-        registry: 'EFI/2019/MRW/0042',
-        trainingLevel: 'Intermediate Dressage',
-      },
+      attributes: { breed: 'Marwari', lineage: 'Sire: Sultan of Marwar, Dam: Rajkumari', registry: 'EFI/2019/MRW/0042', trainingLevel: 'Intermediate Dressage' },
     },
-    update: {},
-  });
+    ['https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?w=800&auto=format&fit=crop'],
+  );
 
-  // Feed product (Feed & Tack Co.)
-  await prisma.product.upsert({
-    where: { id: 'prod_feed_1' },
-    create: {
+  await upsertProduct(
+    {
+      id: 'prod_horse_2',
+      vendorId: vendor2.id,
+      categoryId: horsesCat.id,
+      title: 'Thoroughbred Mare — 4yr, Racetrack Ready',
+      description: 'Young 4-year-old Thoroughbred mare with excellent race pedigree. Fully vet-cleared, RWITC registered. Ideal for flat racing or cross-country. Handled by experienced trainers at Sharma Stud Farm.',
+      price: 850000,
+      status: ListingStatus.ACTIVE,
+      inventory: 1,
+      isFeatured: true,
+      freightRequired: false,
+      attributes: { breed: 'Thoroughbred', lineage: 'Sire: Royal Flash, Dam: Golden Sunrise', registry: 'RWITC/2021/TB/0198', trainingLevel: 'Advanced Racing' },
+    },
+    ['https://images.unsplash.com/photo-1598974357801-cbca100e65d3?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_horse_3',
+      vendorId: vendor2.id,
+      categoryId: horsesCat.id,
+      title: 'Kathiawari Stallion — 5yr, Show Jumper',
+      description: 'Stunning Kathiawari stallion, 15.2 hands, trained for show jumping. Placed 2nd at Maharashtra State Equestrian Championships 2023. Excellent conformation and athletic ability.',
+      price: 620000,
+      status: ListingStatus.ACTIVE,
+      inventory: 1,
+      isFeatured: false,
+      freightRequired: false,
+      attributes: { breed: 'Kathiawari', lineage: 'Sire: Desert Wind, Dam: Priya Rani', registry: 'EFI/2020/KTH/0089', trainingLevel: 'Advanced Show Jumping' },
+    },
+    ['https://images.unsplash.com/photo-1534307671554-9a6d81f4d629?w=800&auto=format&fit=crop'],
+  );
+
+  // ── Feed & Supplements ─────────────────────────────────────────────────────
+
+  await upsertProduct(
+    {
       id: 'prod_feed_1',
       vendorId: vendor1.id,
       categoryId: feedCat.id,
@@ -246,13 +300,47 @@ async function main() {
       isFeatured: true,
       attributes: { brand: 'GreenMeadow', weight: 25, ingredients: 'Alfalfa (Medicago sativa)' },
     },
-    update: {},
-  });
+    ['https://images.unsplash.com/photo-1574482620826-40685ca5ebd2?w=800&auto=format&fit=crop'],
+  );
 
-  // Tack product (Feed & Tack Co.)
-  await prisma.product.upsert({
-    where: { id: 'prod_tack_1' },
-    create: {
+  await upsertProduct(
+    {
+      id: 'prod_feed_2',
+      vendorId: vendor1.id,
+      categoryId: feedCat.id,
+      title: 'Electrolyte Replenisher Powder — 5kg',
+      description: 'Complete electrolyte formula for horses in heavy work. Replaces sodium, potassium, chloride, and magnesium lost through sweat. Mixes easily in water or top-dressed on feed.',
+      price: 2800,
+      status: ListingStatus.ACTIVE,
+      inventory: 200,
+      lowStockAlert: 20,
+      isFeatured: true,
+      attributes: { brand: 'EquiLyte Pro', weight: 5, ingredients: 'Sodium Chloride, Potassium Chloride, Magnesium Sulphate, Dextrose' },
+    },
+    ['https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_feed_3',
+      vendorId: vendor1.id,
+      categoryId: feedCat.id,
+      title: 'Performance Grain Mix — 20kg',
+      description: 'Scientifically formulated grain mix for performance horses. Contains oats, corn, barley, and added vitamins A, D, E. Suitable for horses in moderate to heavy work.',
+      price: 1850,
+      status: ListingStatus.ACTIVE,
+      inventory: 350,
+      lowStockAlert: 30,
+      isFeatured: false,
+      attributes: { brand: 'EquiGrain', weight: 20, ingredients: 'Oats, Corn, Barley, Molasses, Vitamin Mix' },
+    },
+    ['https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop'],
+  );
+
+  // ── Tack & Accessories ─────────────────────────────────────────────────────
+
+  await upsertProduct(
+    {
       id: 'prod_tack_1',
       vendorId: vendor1.id,
       categoryId: tackCat.id,
@@ -261,12 +349,151 @@ async function main() {
       price: 28000,
       status: ListingStatus.ACTIVE,
       inventory: 8,
+      isFeatured: true,
       attributes: { size: 'Medium', color: 'Havana Brown', discipline: 'English' },
     },
-    update: {},
-  });
+    ['https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=800&auto=format&fit=crop'],
+  );
 
-  console.log('✅ Products seeded');
+  await upsertProduct(
+    {
+      id: 'prod_tack_2',
+      vendorId: vendor1.id,
+      categoryId: tackCat.id,
+      title: 'Biothane Western Bridle with Reins',
+      description: 'Durable biothane Western bridle — waterproof, easy to clean, and long-lasting. Comes with matching split reins. Available in full and cob sizes. Perfect for trail and endurance riding.',
+      price: 3500,
+      status: ListingStatus.ACTIVE,
+      inventory: 25,
+      isFeatured: true,
+      attributes: { size: 'Full', color: 'Black', discipline: 'Western' },
+    },
+    ['https://images.unsplash.com/photo-1501706362039-c06b2d715385?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_tack_3',
+      vendorId: vendor1.id,
+      categoryId: tackCat.id,
+      title: 'Fleece Exercise Rug — 145cm',
+      description: 'Soft anti-static fleece exercise rug. Ideal for cooling down after exercise or travelling. Machine washable. Surcingle loops and fillet string included.',
+      price: 1800,
+      status: ListingStatus.ACTIVE,
+      inventory: 40,
+      isFeatured: false,
+      attributes: { size: '145cm', color: 'Navy Blue', discipline: 'Both' },
+    },
+    ['https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&auto=format&fit=crop'],
+  );
+
+  // ── Grooming & Health ──────────────────────────────────────────────────────
+
+  await upsertProduct(
+    {
+      id: 'prod_groom_1',
+      vendorId: vendor1.id,
+      categoryId: groomingCat.id,
+      title: 'Professional Grooming Kit — 8 Piece',
+      description: 'Complete grooming kit including hard brush, soft brush, mane comb, tail brush, hoof pick, curry comb, shedding blade, and carry bag. Suitable for all coat types.',
+      price: 950,
+      status: ListingStatus.ACTIVE,
+      inventory: 120,
+      lowStockAlert: 15,
+      isFeatured: true,
+      attributes: { size: 'One Size' },
+    },
+    ['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_groom_2',
+      vendorId: vendor1.id,
+      categoryId: groomingCat.id,
+      title: 'Medicated Shampoo — 5L',
+      description: 'Veterinary-grade medicated shampoo for horses. Controls skin conditions, removes sweat and grime. Contains tea tree oil and aloe vera. pH balanced for equine skin.',
+      price: 1400,
+      status: ListingStatus.ACTIVE,
+      inventory: 80,
+      lowStockAlert: 10,
+      isFeatured: false,
+      attributes: { size: '5L' },
+    },
+    ['https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_groom_3',
+      vendorId: vendor1.id,
+      categoryId: groomingCat.id,
+      title: 'First Aid Kit for Horses',
+      description: 'Comprehensive equine first aid kit. Includes bandages, wound spray, antiseptic cream, thermometer, scissors, latex gloves, and vet-wrap rolls. Packed in a waterproof case.',
+      price: 2200,
+      status: ListingStatus.ACTIVE,
+      inventory: 60,
+      lowStockAlert: 8,
+      isFeatured: true,
+      attributes: { size: 'One Size' },
+    },
+    ['https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop'],
+  );
+
+  // ── Stable Equipment ───────────────────────────────────────────────────────
+
+  await upsertProduct(
+    {
+      id: 'prod_stable_1',
+      vendorId: vendor1.id,
+      categoryId: stableCat.id,
+      title: 'Heavy Duty Rubber Feed Bucket — 20L',
+      description: 'Unbreakable heavy-duty rubber feed bucket. 20L capacity, suitable for feed and water. Features a flat back for wall mounting and a wide base for stability. Easy to clean.',
+      price: 650,
+      status: ListingStatus.ACTIVE,
+      inventory: 300,
+      lowStockAlert: 30,
+      isFeatured: false,
+      attributes: {},
+    },
+    ['https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_stable_2',
+      vendorId: vendor1.id,
+      categoryId: stableCat.id,
+      title: 'Automatic Water Trough — 150L',
+      description: 'Galvanised steel automatic water trough with float valve. 150L capacity, suitable for 4–6 horses. Corrosion resistant, easy installation. Ideal for paddock or stable use.',
+      price: 8500,
+      status: ListingStatus.ACTIVE,
+      inventory: 15,
+      lowStockAlert: 3,
+      isFeatured: true,
+      attributes: {},
+    },
+    ['https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=800&auto=format&fit=crop'],
+  );
+
+  await upsertProduct(
+    {
+      id: 'prod_stable_3',
+      vendorId: vendor1.id,
+      categoryId: stableCat.id,
+      title: 'Hay Net — Large (Slow Feeder)',
+      description: 'Heavy-duty slow-feeder hay net. Small holes encourage natural grazing behaviour and reduce hay wastage by up to 50%. UV-stabilised nylon, fits a full bale.',
+      price: 480,
+      status: ListingStatus.ACTIVE,
+      inventory: 200,
+      lowStockAlert: 20,
+      isFeatured: false,
+      attributes: {},
+    },
+    ['https://images.unsplash.com/photo-1574482620826-40685ca5ebd2?w=800&auto=format&fit=crop'],
+  );
+
+  console.log('✅ Products seeded (15 total across 5 categories)');
 
   // ─── Platform Settings ─────────────────────────────────────────────────────
 
@@ -297,6 +524,8 @@ async function main() {
   console.log('  Vendor 2: vendor2@horsey.in   / Vendor@1234  (Sharma Stud Farm)');
   console.log('  Buyer 1:  priya@horsey.in     / Buyer@1234   (Priya Mehta)');
   console.log('  Buyer 2:  rajput@horsey.in    / Buyer@1234   (Rajput Stables)');
+  console.log('\n📦 Products: 3 Horses · 3 Feed · 3 Tack · 3 Grooming · 3 Stable (15 total)');
+  console.log('   Featured: horse_1, horse_2, feed_1, feed_2, tack_1, tack_2, groom_1, groom_3, stable_2');
 }
 
 main()

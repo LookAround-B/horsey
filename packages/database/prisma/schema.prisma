@@ -15,6 +15,38 @@ enum UserRole {
   BUYER
 }
 
+enum AuthEvent {
+  REGISTER_EMAIL
+  REGISTER_GOOGLE
+  REGISTER_APPLE
+  REGISTER_PHONE
+  LOGIN_EMAIL
+  LOGIN_GOOGLE
+  LOGIN_APPLE
+  LOGIN_PHONE
+  LOGIN_FAILED
+  LOGIN_BLOCKED
+  LOGOUT
+  LOGOUT_ALL
+  TOKEN_REFRESH
+  TOKEN_REFRESH_REUSE_DETECTED
+  EMAIL_VERIFY_SENT
+  EMAIL_VERIFIED
+  PHONE_OTP_SENT
+  PHONE_VERIFIED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  PASSWORD_CHANGED
+  MFA_ENABLED
+  MFA_DISABLED
+  MFA_VERIFY_FAILED
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  SESSION_REVOKED
+  ALL_SESSIONS_REVOKED
+  SUSPICIOUS_ACTIVITY
+}
+
 enum RidingDiscipline {
   ENGLISH
   WESTERN
@@ -64,39 +96,110 @@ enum DisputeStatus {
 // ─── Core Models ─────────────────────────────────────────────────────────────
 
 model User {
-  id                  String            @id @default(cuid())
-  email               String?           @unique
-  phone               String?           @unique
-  name                String
-  role                UserRole          @default(BUYER)
-  avatarUrl           String?
-  bio                 String?
-  ridingDiscipline    RidingDiscipline?
-  emailVerified       Boolean           @default(false)
-  paymentMethodToken  String?           // Razorpay customer ID
+  id                    String            @id @default(cuid())
+  email                 String?           @unique
+  phone                 String?           @unique
+  name                  String
+  role                  UserRole          @default(BUYER)
+  avatarUrl             String?
+  bio                   String?
+  ridingDiscipline      RidingDiscipline?
+  emailVerified         Boolean           @default(false)
+  emailVerifyToken      String?           @unique
+  emailVerifyTokenExpiry DateTime?
+  paymentMethodToken    String?
 
   // Auth
-  passwordHash        String?
-  refreshToken        String?
-  googleId            String?           @unique
-  fcmToken            String?
+  passwordHash          String?
+  googleId              String?           @unique
+  appleId               String?           @unique
+  fcmToken              String?
+  phoneVerified         Boolean           @default(false)
+  isActive              Boolean           @default(true)
+  isBanned              Boolean           @default(false)
+  banReason             String?
+  mfaEnabled            Boolean           @default(false)
+  mfaSecret             String?
+  mfaBackupCodes        String?           // JSON array of hashed backup codes
+  failedLoginAttempts   Int               @default(0)
+  lockedUntil           DateTime?
+  lastLoginAt           DateTime?
+  lastLoginIp           String?
+  lastLoginUserAgent    String?
+  passwordChangedAt     DateTime?
+  passwordResetToken    String?           @unique
+  passwordResetExpiry   DateTime?
 
   // Relations
-  addresses           Address[]
-  vendor              Vendor?
-  orders              Order[]
-  cart                Cart?
-  notifications       Notification[]
-  reviews             Review[]
-  disputes            Dispute[]
-  auditLogs           AuditLog[]
+  addresses             Address[]
+  vendor                Vendor?
+  orders                Order[]
+  cart                  Cart?
+  notifications         Notification[]
+  reviews               Review[]
+  disputes              Dispute[]
+  auditLogs             AuditLog[]
+  sessions              Session[]
+  refreshTokens         RefreshToken[]
+  authAuditLogs         AuthAuditLog[]
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@index([email])
   @@index([phone])
   @@index([role])
+}
+
+model Session {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken      String   @unique
+  deviceFingerprint String?
+  userAgent         String?
+  ipAddress         String?
+  isRevoked         Boolean  @default(false)
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  lastUsedAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String   @unique
+  familyId       String
+  isRevoked      Boolean  @default(false)
+  replacedByHash String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  userAgent      String?
+  ipAddress      String?
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([familyId])
+}
+
+model AuthAuditLog {
+  id            String    @id @default(cuid())
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  event         AuthEvent
+  ipAddress     String
+  userAgent     String?
+  metadata      Json?
+  success       Boolean
+  failureReason String?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([event, userId])
 }
 
 model Address {
@@ -126,7 +229,7 @@ model Vendor {
   businessName   String
   gstNumber      String?
   panNumber      String?
-  bankAccountRef String?        // Razorpay X linked account ID
+  bankAccountRef String?
   status         VendorStatus   @default(PENDING)
   kycDocuments   KycDocument[]
   products       Product[]
@@ -143,7 +246,7 @@ model KycDocument {
   id         String   @id @default(cuid())
   vendorId   String
   vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  type       String   // "BUSINESS_LICENSE" | "ID_PROOF"
+  type       String
   url        String
   uploadedAt DateTime @default(now())
 }
@@ -157,8 +260,8 @@ model Category {
   parentId   String?
   parent     Category?   @relation("SubCategories", fields: [parentId], references: [id])
   children   Category[]  @relation("SubCategories")
-  attributes Json        // per-category attribute schema
-  slaHours   Int         @default(24) // per-category SLA override (e.g. 72 for horses)
+  attributes Json
+  slaHours   Int         @default(24)
   products   Product[]
   createdAt  DateTime    @default(now())
 }
@@ -177,7 +280,7 @@ model Product {
   lowStockAlert   Int             @default(5)
   freightRequired Boolean         @default(false)
   isFeatured      Boolean         @default(false)
-  attributes      Json            // category-specific fields
+  attributes      Json
   media           ProductMedia[]
   variants        ProductVariant[]
   orderItems      OrderItem[]
@@ -208,7 +311,7 @@ model ProductMedia {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   url       String
-  type      String  // "IMAGE" | "VIDEO"
+  type      String
   order     Int     @default(0)
 }
 
@@ -241,7 +344,7 @@ model Order {
   buyerId        String
   buyer          User       @relation(fields: [buyerId], references: [id])
   subOrders      SubOrder[]
-  paymentAuthId  String?    // Razorpay order/auth ID
+  paymentAuthId  String?
   totalAmount    Decimal    @db.Decimal(12, 2)
   createdAt      DateTime   @default(now())
 

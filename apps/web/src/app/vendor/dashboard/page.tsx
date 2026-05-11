@@ -7,14 +7,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { API_BASE } from "@/lib/api"
 
 export default function VendorDashboardPage() {
   const [analytics, setAnalytics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken")
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+    const token = localStorage.getItem("horsey_access_token")
+    const base = API_BASE
     fetch(`${base}/vendors/me/analytics`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => { setAnalytics(data); setLoading(false) })

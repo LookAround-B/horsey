@@ -46,7 +46,7 @@ export class OrdersService {
           where: { id: item.productId },
           include: {
             vendor: { select: { id: true, businessName: true } },
-            media: { where: { type: 'IMAGE' }, orderBy: { order: 'asc' }, take: 1 },
+            media: { where: { type: 'image' }, orderBy: { order: 'asc' }, take: 1 },
             category: { select: { slug: true } },
           },
         });
@@ -107,6 +107,12 @@ export class OrdersService {
   // ─── Checkout ──────────────────────────────────────────────────────────────
 
   async checkout(userId: string, dto: CheckoutDto) {
+    // PRD §7.1: Email verification required before first purchase
+    const buyer = await this.prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true, email: true } });
+    if (buyer?.email && !buyer.emailVerified) {
+      throw new BadRequestException('Please verify your email before making a purchase. Check your inbox for the verification link.');
+    }
+
     const cart = await this.getCart(userId);
     if (!cart.items.length) throw new BadRequestException('Cart is empty');
 
@@ -214,7 +220,7 @@ export class OrdersService {
                 include: {
                   product: {
                     include: {
-                      media: { where: { type: 'IMAGE' }, take: 1 },
+                      media: { where: { type: 'image' }, take: 1 },
                     },
                   },
                 },
@@ -251,7 +257,7 @@ export class OrdersService {
             include: {
               product: {
                 include: {
-                  media: { where: { type: 'IMAGE' }, take: 1 },
+                  media: { where: { type: 'image' }, take: 1 },
                 },
               },
               variant: true,

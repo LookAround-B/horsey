@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { API_BASE } from "@/lib/api"
 
 export default function CartPage() {
   const [cart, setCart] = useState<any>(null)
@@ -15,8 +16,8 @@ export default function CartPage() {
   const router = useRouter()
 
   const fetchCart = async () => {
-    const token = localStorage.getItem("accessToken")
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+    const token = localStorage.getItem("horsey_access_token")
+    const base = API_BASE
     const res = await fetch(`${base}/cart`, { headers: { Authorization: `Bearer ${token}` } })
     const data = await res.json()
     setCart(data)
@@ -24,8 +25,8 @@ export default function CartPage() {
   }
 
   const removeItem = async (itemId: string) => {
-    const token = localStorage.getItem("accessToken")
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+    const token = localStorage.getItem("horsey_access_token")
+    const base = API_BASE
     await fetch(`${base}/cart/items/${itemId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } })
     fetchCart()
   }

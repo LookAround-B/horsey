@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -11,16 +11,20 @@ import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { MediaModule } from './media/media.module';
+import { SlaModule } from './sla/sla.module';
 
 // Marketplace
 import { VendorModule } from './vendor/vendor.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
-// import { SlaModule } from './sla/sla.module'; // Disabled: pg-boss queues not initialized in dev
+import { AdminModule } from './admin/admin.module';
 
 // App
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+
+// Middleware
+import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 
 @Module({
   imports: [
@@ -32,10 +36,11 @@ import { AppService } from './app.service';
     NotificationsModule,
     RealtimeModule,
     MediaModule,
+    SlaModule,
     VendorModule,
     ProductsModule,
     OrdersModule,
-    // SlaModule, // Disabled: pg-boss queues not initialized in dev
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
@@ -43,4 +48,8 @@ import { AppService } from './app.service';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
+  }
+}

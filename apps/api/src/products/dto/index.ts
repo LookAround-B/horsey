@@ -107,4 +107,20 @@ export class ProductSearchDto {
   @IsOptional()
   @IsString()
   sort?: 'price_asc' | 'price_desc' | 'newest' | 'rating';
+
+  @IsOptional()
+  @IsString()
+  breed?: string;
+
+  @IsOptional()
+  @IsString()
+  discipline?: string;
+
+  @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
 }

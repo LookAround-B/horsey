@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Patch, Body, Param, Query,
   UseGuards, Req,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { AuthRequest } from '../common/types/request';
@@ -77,6 +77,27 @@ export class ProductsController {
     @Body() body: { url: string; type: string; order?: number },
   ) {
     return this.productsService.addMedia(req.user.id, id, body.url, body.type, body.order);
+  }
+
+  @Post(':id/reviews')
+  @UseGuards(JwtAuthGuard)
+  createReview(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @Body() body: { rating: number; body?: string; subOrderId: string },
+  ) {
+    return this.productsService.createReview(req.user.id, id, body);
+  }
+
+  @Post('reviews/:id/respond')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDOR)
+  respondToReview(
+    @Req() req: AuthRequest,
+    @Param('id') id: string,
+    @Body() body: { body: string },
+  ) {
+    return this.productsService.respondToReview(req.user.id, id, body.body);
   }
 
   @Post('admin/seed-categories')

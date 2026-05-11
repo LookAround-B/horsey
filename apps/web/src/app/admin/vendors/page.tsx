@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { API_BASE } from "@/lib/api"
 
 export default function AdminVendorsPage() {
   const [vendors, setVendors] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("accessToken")
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+  const token = () => localStorage.getItem("horsey_access_token")
+  const base = API_BASE
 
   const fetchVendors = async () => {
     const res = await fetch(`${base}/vendors/applications`, { headers: { Authorization: `Bearer ${token()}` } })

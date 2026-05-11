@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, ShoppingCart, Shield, Clock, Star, Package, AlertTriangle } from "lucide-react"
+import { ArrowLeft, ShoppingCart, Shield, Clock, Star, Package, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
+import { API_BASE } from "@/lib/api"
 
 export default function ProductDetailPage() {
   const { id } = useParams()
@@ -21,7 +22,7 @@ export default function ProductDetailPage() {
   const [addingToCart, setAddingToCart] = useState(false)
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+    const base = API_BASE
     fetch(`${base}/products/${id}`)
       .then((r) => r.json())
       .then((data) => { setProduct(data); setLoading(false) })
@@ -31,8 +32,8 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     setAddingToCart(true)
     try {
-      const token = localStorage.getItem("accessToken")
-      const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+      const token = localStorage.getItem("horsey_access_token")
+      const base = API_BASE
       await fetch(`${base}/cart/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -131,13 +132,28 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Vendor Card */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">
-              {product.vendor?.businessName?.[0]}
+          <div className="p-4 rounded-xl bg-muted/50 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-bold">
+                {product.vendor?.businessName?.[0]}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">{product.vendor?.businessName}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-600">Verified Vendor</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium">{product.vendor?.businessName}</p>
-              <p className="text-xs text-muted-foreground">Verified Vendor</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-center p-2 rounded-lg bg-background/60">
+                <p className="text-sm font-bold text-green-600">24h</p>
+                <p className="text-[10px] text-muted-foreground">SLA Guarantee</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-background/60">
+                <p className="text-sm font-bold">5-7 days</p>
+                <p className="text-[10px] text-muted-foreground">Est. Shipping</p>
+              </div>
             </div>
           </div>
 

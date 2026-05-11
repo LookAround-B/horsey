@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Patch, Body, Param, Query,
   UseGuards, Req,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { AuthRequest } from '../common/types/request';
@@ -39,6 +39,16 @@ export class VendorController {
   @Roles(UserRole.VENDOR)
   getAnalytics(@Req() req: AuthRequest) {
     return this.vendorService.getVendorAnalytics(req.user.id);
+  }
+
+  @Get('me/payouts')
+  @Roles(UserRole.VENDOR)
+  getPayouts(
+    @Req() req: AuthRequest,
+    @Query('page') page?: number,
+    @Query('pageSize') pageSize?: number,
+  ) {
+    return this.vendorService.getVendorPayouts(req.user.id, page, pageSize);
   }
 
   @Get('applications')

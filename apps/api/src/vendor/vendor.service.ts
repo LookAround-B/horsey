@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole, VendorStatus } from 'database';
 import { CreateVendorDto, ReviewVendorDto } from './dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class VendorService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async applyAsVendor(userId: string, dto: CreateVendorDto) {
     const existing = await this.prisma.vendor.findUnique({ where: { userId } });
@@ -101,6 +105,22 @@ export class VendorService {
       },
     });
 
+    // Notify vendor of status change via email
+    const vendorUser = await this.prisma.user.findUnique({ where: { id: vendor.userId } });
+    if (vendorUser?.email) {
+      const subject = dto.action === 'APPROVED'
+        ? 'Your Horsey vendor application has been approved!'
+        : dto.action === 'REJECTED'
+          ? 'Update on your Horsey vendor application'
+          : `Your Horsey vendor account status: ${dto.action}`;
+
+      const body = dto.action === 'APPROVED'
+        ? '<h2>Congratulations!</h2><p>Your vendor application has been approved. You can now list products on the Horsey marketplace.</p>'
+        : `<h2>Application Update</h2><p>Your vendor application status has been updated to: <strong>${dto.action}</strong>.</p>${dto.note ? `<p>Note: ${dto.note}</p>` : ''}`;
+
+      this.notificationsService.sendEmail(vendorUser.email, subject, body).catch(() => {});
+    }
+
     return updated;
   }
 
@@ -177,5 +197,21 @@ export class VendorService {
       acceptanceRate,
       avgAcceptanceHours: Math.round(avgAcceptanceMs / (1000 * 60 * 60)),
     };
+  }
+  async getVendorPayouts(userId: string, page = 1, pageSize = 50) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { userId } });
+    if (!vendor) throw new NotFoundException('Vendor profile not found');
+
+    const skip = (page - 1) * pageSize;
+    const [data, total] = await Promise.all([
+      this.prisma.payout.findMany({
+        where: { vendorId: vendor.id },
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payout.count({ where: { vendorId: vendor.id } }),
+    ]);
+    return { data, total, page, pageSize };
   }
 }

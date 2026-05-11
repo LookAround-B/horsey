@@ -5,6 +5,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { FeaturedListings } from "@/components/features/featured-listings"
 
 const categories = [
   { name: "Horses", slug: "horses", emoji: "🐴", description: "Foals, broodmares, performance horses", accent: "from-amber-500 to-orange-600" },
@@ -129,6 +130,11 @@ export default function HomePage() {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* Featured / New Listings */}
+      <section className="container py-16 md:py-24">
+        <FeaturedListings />
       </section>
 
       {/* Why Horsey */}

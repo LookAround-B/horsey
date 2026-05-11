@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, ListingStatus, VendorStatus } from 'database';
@@ -78,6 +79,24 @@ export class ProductsService {
       }),
     };
 
+    // JSON attribute filters (breed, discipline, brand, location)
+    const attrFilters: any[] = [];
+    if (dto.breed) {
+      attrFilters.push({ attributes: { path: ['breed'], string_contains: dto.breed } });
+    }
+    if (dto.discipline) {
+      attrFilters.push({ attributes: { path: ['trainingLevel'], string_contains: dto.discipline } });
+    }
+    if (dto.brand) {
+      attrFilters.push({ attributes: { path: ['brand'], string_contains: dto.brand } });
+    }
+    if (dto.location) {
+      attrFilters.push({ attributes: { path: ['location'], string_contains: dto.location } });
+    }
+    if (attrFilters.length > 0) {
+      where.AND = [...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []), ...attrFilters];
+    }
+
     const orderBy: Prisma.ProductOrderByWithRelationInput =
       dto.sort === 'price_asc'
         ? { price: 'asc' }
@@ -94,7 +113,7 @@ export class ProductsService {
         include: {
           category: { select: { id: true, name: true, slug: true } },
           vendor: { select: { id: true, businessName: true } },
-          media: { where: { type: 'IMAGE' }, orderBy: { order: 'asc' }, take: 1 },
+          media: { where: { type: 'image' }, orderBy: { order: 'asc' }, take: 1 },
           _count: { select: { reviews: true } },
         },
       }),
@@ -142,7 +161,7 @@ export class ProductsService {
       include: {
         category: { select: { name: true, slug: true } },
         vendor: { select: { businessName: true } },
-        media: { where: { type: 'IMAGE' }, orderBy: { order: 'asc' }, take: 1 },
+        media: { where: { type: 'image' }, orderBy: { order: 'asc' }, take: 1 },
       },
     });
   }
@@ -210,7 +229,7 @@ export class ProductsService {
         orderBy: { updatedAt: 'desc' },
         include: {
           category: { select: { name: true, slug: true } },
-          media: { where: { type: 'IMAGE' }, take: 1 },
+          media: { where: { type: 'image' }, take: 1 },
           _count: { select: { orderItems: true } },
         },
       }),
@@ -227,6 +246,64 @@ export class ProductsService {
 
     return this.prisma.productMedia.create({
       data: { productId, url, type, order },
+    });
+  }
+
+  // ─── Reviews ──────────────────────────────────────────────────────────────
+
+  async createReview(
+    buyerId: string,
+    productId: string,
+    dto: { rating: number; body?: string; subOrderId: string },
+  ) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    // Verify the buyer has a delivered sub-order containing this product
+    const eligibleItem = await this.prisma.orderItem.findFirst({
+      where: {
+        productId,
+        subOrder: {
+          order: { buyerId },
+          status: 'DELIVERED',
+          id: dto.subOrderId,
+        },
+      },
+    });
+    if (!eligibleItem) {
+      throw new ForbiddenException('You can only review products from delivered orders');
+    }
+
+    const existing = await this.prisma.review.findFirst({
+      where: { buyerId, productId, subOrderId: dto.subOrderId },
+    });
+    if (existing) throw new ConflictException('You have already reviewed this product');
+
+    return this.prisma.review.create({
+      data: {
+        buyerId,
+        productId,
+        vendorId: product.vendorId,
+        subOrderId: dto.subOrderId,
+        rating: dto.rating,
+        body: dto.body,
+      },
+    });
+  }
+
+  async respondToReview(vendorUserId: string, reviewId: string, body: string) {
+    const vendor = await this.prisma.vendor.findUnique({ where: { userId: vendorUserId } });
+    if (!vendor) throw new ForbiddenException('Not a vendor');
+
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException('Review not found');
+    if (review.vendorId !== vendor.id) throw new ForbiddenException('Not your review');
+
+    const existing = await this.prisma.reviewResponse.findUnique({ where: { reviewId } });
+    if (existing) throw new ConflictException('Already responded to this review');
+
+    return this.prisma.reviewResponse.create({
+      data: { reviewId, vendorId: vendor.id, body },
     });
   }
 

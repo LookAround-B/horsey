@@ -1,1 +1,1 @@
-export { RolesGuard } from './roles.guard';
+export { RolesGuard } from '../../auth/guards/roles.guard';

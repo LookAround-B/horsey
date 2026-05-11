@@ -1,5 +1,7 @@
 export const ENDPOINTS = {
   // Auth
+  REGISTER: '/auth/register',
+  LOGIN: '/auth/login',
   SEND_OTP: '/auth/send-otp',
   VERIFY_OTP: '/auth/verify-otp',
   GOOGLE_AUTH: '/auth/google',
@@ -9,45 +11,49 @@ export const ENDPOINTS = {
   // Users
   ME: '/users/me',
   USER: (id: string) => `/users/${id}`,
-  MER_RECORDS: '/users/me/mer-records',
-  MER_RECORDS_DISCIPLINE: (d: string) => `/users/me/mer-records/${d}`,
 
-  // Events
-  EVENTS: '/events',
-  EVENT: (id: string) => `/events/${id}`,
-  PUBLISH_EVENT: (id: string) => `/events/${id}/publish`,
+  // Products & Catalog
+  PRODUCTS_SEARCH: '/products/search',
+  PRODUCTS_FEATURED: '/products/featured',
+  PRODUCTS_CATEGORIES: '/products/categories',
+  PRODUCT: (id: string) => `/products/${id}`,
+  PRODUCT_MEDIA: (id: string) => `/products/${id}/media`,
+  PRODUCT_REVIEWS: (id: string) => `/products/${id}/reviews`,
+  REVIEW_RESPOND: (id: string) => `/products/reviews/${id}/respond`,
 
-  // Competitions
-  EVENT_COMPETITIONS: (eventId: string) => `/events/${eventId}/competitions`,
-  COMPETITION: (id: string) => `/competitions/${id}`,
-  COMPETITION_ENTRIES: (id: string) => `/competitions/${id}/entries`,
-  COMPETITION_DRAW: (id: string) => `/competitions/${id}/draw`,
-  DELETE_ENTRY: (id: string) => `/entries/${id}`,
+  // Vendor
+  VENDOR_APPLY: '/vendors/apply',
+  VENDOR_ME: '/vendors/me',
+  VENDOR_KYC: '/vendors/me/kyc',
+  VENDOR_ANALYTICS: '/vendors/me/analytics',
+  VENDOR_MY_LISTINGS: '/products/vendor/my-listings',
 
-  // Scoring
-  SCORE_DRESSAGE: '/scores/dressage',
-  SCORE_SHOW_JUMPING: '/scores/show-jumping',
-  SCORE_TENT_PEGGING: '/scores/tent-pegging',
-  UPDATE_SCORE: (id: string) => `/scores/${id}`,
-  COMPETITION_SCORES: (id: string) => `/scores/competitions/${id}/scores`,
-  COMPETITION_LEADERBOARD: (id: string) => `/scores/competitions/${id}/leaderboard`,
+  // Cart
+  CART: '/cart',
+  CART_ITEMS: '/cart/items',
+  CART_ITEM: (id: string) => `/cart/items/${id}`,
 
-  // Horses
-  HORSES: '/horses',
-  HORSE: (id: string) => `/horses/${id}`,
+  // Orders
+  CHECKOUT: '/orders/checkout',
+  MY_ORDERS: '/orders',
+  VENDOR_ORDERS: '/vendor/orders',
+  SUB_ORDER_ACCEPT: (id: string) => `/sub-orders/${id}/accept`,
+  SUB_ORDER_DECLINE: (id: string) => `/sub-orders/${id}/decline`,
+  SUB_ORDER_SHIP: (id: string) => `/sub-orders/${id}/ship`,
+  SUB_ORDER_DELIVER: (id: string) => `/sub-orders/${id}/deliver`,
 
-  // Marketplace
-  MARKETPLACE_HORSES: '/marketplace/horses',
-  MARKETPLACE_HORSE: (id: string) => `/marketplace/horses/${id}`,
-  TOGGLE_FAVORITE: (id: string) => `/marketplace/horses/${id}/favorite`,
-  FAVORITES: '/marketplace/favorites',
+  // Admin
+  ADMIN_ORDERS: '/admin/orders',
+  ADMIN_SLA_DASHBOARD: '/admin/sla-dashboard',
+  ADMIN_FORCE_ACCEPT: (id: string) => `/admin/sub-orders/${id}/force-accept`,
+  ADMIN_FORCE_CANCEL: (id: string) => `/admin/sub-orders/${id}/force-cancel`,
+  ADMIN_VENDOR_APPLICATIONS: '/vendors/applications',
+  ADMIN_VENDOR: (id: string) => `/vendors/${id}`,
+  ADMIN_VENDOR_REVIEW: (id: string) => `/vendors/${id}/review`,
 
-  // Payments
-  CREATE_ORDER: '/payments/create-order',
-  VERIFY_PAYMENT: '/payments/verify',
-
-  // Stables
-  STABLES: '/stables',
-  STABLE: (id: string) => `/stables/${id}`,
-  STABLE_REVIEWS: (id: string) => `/stables/${id}/reviews`,
+  // Notifications
+  NOTIFICATIONS: '/notifications',
+  NOTIFICATIONS_UNREAD_COUNT: '/notifications/unread-count',
+  NOTIFICATIONS_MARK_READ: '/notifications/mark-read',
+  NOTIFICATIONS_MARK_ALL_READ: '/notifications/mark-all-read',
 } as const;

@@ -1,13 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Clock, CheckCircle, XCircle, ChevronDown } from "lucide-react"
+import { Clock, CheckCircle, XCircle, Truck, Package, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatCountdown, getRemainingMs, getSlaZone } from "shared"
+import { API_BASE } from "@/lib/api"
 
 const DECLINE_REASONS = ["Out of stock", "Cannot fulfil in time", "Buyer did not meet requirements", "Other"]
 
@@ -35,9 +37,11 @@ export default function VendorOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [declineReason, setDeclineReason] = useState<Record<string, string>>({})
+  const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({})
+  const [showTrackingFor, setShowTrackingFor] = useState<string | null>(null)
 
-  const token = () => localStorage.getItem("accessToken")
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+  const token = () => localStorage.getItem("horsey_access_token")
+  const base = API_BASE
 
   const fetchOrders = async () => {
     const res = await fetch(`${base}/vendor/orders?pageSize=50`, { headers: { Authorization: `Bearer ${token()}` } })
@@ -68,8 +72,34 @@ export default function VendorOrdersPage() {
     setActionLoading(null)
   }
 
+  const ship = async (id: string) => {
+    const trackingNumber = trackingInputs[id]
+    if (!trackingNumber?.trim()) { alert("Please enter a tracking number"); return }
+    setActionLoading(id)
+    await fetch(`${base}/sub-orders/${id}/ship`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ trackingNumber: trackingNumber.trim() }),
+    })
+    setShowTrackingFor(null)
+    await fetchOrders()
+    setActionLoading(null)
+  }
+
+  const confirmDelivery = async (id: string) => {
+    setActionLoading(id)
+    await fetch(`${base}/sub-orders/${id}/deliver`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token()}` },
+    })
+    await fetchOrders()
+    setActionLoading(null)
+  }
+
   const pending = subOrders.filter((o) => o.status === "PENDING_ACCEPTANCE")
-  const others = subOrders.filter((o) => o.status !== "PENDING_ACCEPTANCE")
+  const accepted = subOrders.filter((o) => o.status === "ACCEPTED")
+  const shipped = subOrders.filter((o) => o.status === "SHIPPED")
+  const others = subOrders.filter((o) => !["PENDING_ACCEPTANCE", "ACCEPTED", "SHIPPED"].includes(o.status))
 
   if (loading) {
     return (
@@ -84,11 +114,20 @@ export default function VendorOrdersPage() {
     <div className="container py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Order Inbox</h1>
-        {pending.length > 0 && (
-          <Badge variant="destructive" className="text-sm px-3 py-1">{pending.length} pending</Badge>
-        )}
+        <div className="flex gap-2">
+          {pending.length > 0 && (
+            <Badge variant="destructive" className="text-sm px-3 py-1">{pending.length} pending</Badge>
+          )}
+          {accepted.length > 0 && (
+            <Badge variant="secondary" className="text-sm px-3 py-1">{accepted.length} to ship</Badge>
+          )}
+          {shipped.length > 0 && (
+            <Badge variant="outline" className="text-sm px-3 py-1">{shipped.length} in transit</Badge>
+          )}
+        </div>
       </div>
 
+      {/* ─── Pending Acceptance ─────────────────────────────────────────── */}
       {pending.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Requires Action</h2>
@@ -118,6 +157,12 @@ export default function VendorOrdersPage() {
 
                     {order.notes && (
                       <p className="text-xs text-muted-foreground italic">Note: {order.notes}</p>
+                    )}
+
+                    {order.isHorsePurchase && (
+                      <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-500/10 px-3 py-2 rounded-lg">
+                        🐴 Live animal purchase — coordinate pickup with buyer
+                      </div>
                     )}
 
                     <div className="flex gap-3 items-center pt-1">
@@ -156,9 +201,112 @@ export default function VendorOrdersPage() {
         </div>
       )}
 
+      {/* ─── Accepted — Ready to Ship ─────────────────────────────────── */}
+      {accepted.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Ready to Ship</h2>
+          <div className="space-y-3">
+            {accepted.map((order) => (
+              <Card key={order.id} className="glass-card border-green-500/20">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{order.order?.buyer?.name}</p>
+                      <p className="text-xs text-muted-foreground">{order.items?.map((i: any) => i.product?.title).join(", ")}</p>
+                    </div>
+                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Accepted</Badge>
+                  </div>
+
+                  {/* Shipping address */}
+                  {order.address && (
+                    <p className="text-xs text-muted-foreground">
+                      📍 {order.address.line1}, {order.address.city}, {order.address.state} — {order.address.pincode}
+                    </p>
+                  )}
+
+                  {order.isHorsePurchase ? (
+                    <div className="flex items-center gap-2 p-3 bg-amber-500/10 rounded-lg text-sm">
+                      <span>🐴</span>
+                      <div>
+                        <p className="font-medium text-amber-700">Live Animal — Coordinate Pickup</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Contact buyer directly to arrange transport. Mark as shipped once pickup is scheduled.</p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {showTrackingFor === order.id ? (
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Enter tracking number"
+                        value={trackingInputs[order.id] ?? ""}
+                        onChange={(e) => setTrackingInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                        className="flex-1"
+                      />
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5" onClick={() => ship(order.id)} disabled={actionLoading === order.id}>
+                        <Send className="w-3.5 h-3.5" /> Ship
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowTrackingFor(null)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 border-blue-500/30 text-blue-600 hover:bg-blue-500/10"
+                      onClick={() => setShowTrackingFor(order.id)}
+                    >
+                      <Truck className="w-4 h-4" /> Enter Tracking & Ship
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Shipped — Awaiting Delivery ──────────────────────────────── */}
+      {shipped.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">In Transit</h2>
+          <div className="space-y-3">
+            {shipped.map((order) => (
+              <Card key={order.id} className="glass-card">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{order.order?.buyer?.name}</p>
+                      <p className="text-xs text-muted-foreground">{order.items?.map((i: any) => i.product?.title).join(", ")}</p>
+                    </div>
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                      <Truck className="w-3 h-3 mr-1" /> Shipped
+                    </Badge>
+                  </div>
+
+                  {order.trackingNumber && (
+                    <p className="text-xs text-muted-foreground">
+                      Tracking: <span className="font-mono font-medium text-foreground">{order.trackingNumber}</span>
+                    </p>
+                  )}
+
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                    onClick={() => confirmDelivery(order.id)}
+                    disabled={actionLoading === order.id}
+                  >
+                    <Package className="w-4 h-4" /> Confirm Delivery
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Completed / Other ────────────────────────────────────────── */}
       {others.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Recent Orders</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Past Orders</h2>
           <div className="space-y-2">
             {others.map((order) => (
               <Card key={order.id} className="glass-card">
@@ -178,7 +326,7 @@ export default function VendorOrdersPage() {
         </div>
       )}
 
-      {!pending.length && !others.length && (
+      {!pending.length && !accepted.length && !shipped.length && !others.length && (
         <div className="text-center py-20 text-muted-foreground">
           <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p>No orders yet. Your orders will appear here.</p>

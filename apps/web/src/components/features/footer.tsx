@@ -15,48 +15,50 @@ export function Footer() {
               <span className="text-lg font-bold gradient-text">Horsey</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              India&apos;s comprehensive equestrian platform for events, scoring, marketplace, and stable management.
+              India&apos;s unified marketplace for buying horses, feed, tack, and all equestrian supplies — with a guaranteed 24-hour vendor SLA.
             </p>
           </div>
 
-          {/* Platform */}
+          {/* Marketplace */}
           <div>
-            <h4 className="text-sm font-semibold mb-3">Platform</h4>
+            <h4 className="text-sm font-semibold mb-3">Marketplace</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/events" className="hover:text-foreground transition-colors">Discover Events</Link></li>
-              <li><Link href="/marketplace" className="hover:text-foreground transition-colors">Horse Marketplace</Link></li>
-              <li><Link href="/stables" className="hover:text-foreground transition-colors">Find Stables</Link></li>
+              <li><Link href="/marketplace" className="hover:text-foreground transition-colors">Browse All</Link></li>
+              <li><Link href="/marketplace?category=horses" className="hover:text-foreground transition-colors">Horses</Link></li>
+              <li><Link href="/marketplace?category=feed-supplements" className="hover:text-foreground transition-colors">Feed &amp; Supplements</Link></li>
+              <li><Link href="/marketplace?category=tack-accessories" className="hover:text-foreground transition-colors">Tack &amp; Accessories</Link></li>
             </ul>
           </div>
 
-          {/* Disciplines */}
+          {/* Sellers */}
           <div>
-            <h4 className="text-sm font-semibold mb-3">Disciplines</h4>
+            <h4 className="text-sm font-semibold mb-3">Sell on Horsey</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>Dressage</li>
-              <li>Show Jumping</li>
-              <li>Eventing</li>
-              <li>Tent Pegging</li>
+              <li><Link href="/vendor/apply" className="hover:text-foreground transition-colors">Become a Vendor</Link></li>
+              <li><Link href="/vendor/dashboard" className="hover:text-foreground transition-colors">Vendor Dashboard</Link></li>
+              <li><Link href="/vendor/listings" className="hover:text-foreground transition-colors">Manage Listings</Link></li>
+              <li><Link href="/vendor/orders" className="hover:text-foreground transition-colors">Order Inbox</Link></li>
             </ul>
           </div>
 
-          {/* Governing Bodies */}
+          {/* Account */}
           <div>
-            <h4 className="text-sm font-semibold mb-3">Compliance</h4>
+            <h4 className="text-sm font-semibold mb-3">Account</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>FEI Compliant Scoring</li>
-              <li>EFI REL 2026 Rules</li>
-              <li>ITPF Guidelines</li>
+              <li><Link href="/register" className="hover:text-foreground transition-colors">Sign Up Free</Link></li>
+              <li><Link href="/login" className="hover:text-foreground transition-colors">Sign In</Link></li>
+              <li><Link href="/orders" className="hover:text-foreground transition-colors">My Orders</Link></li>
+              <li><Link href="/dashboard/profile" className="hover:text-foreground transition-colors">My Profile</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="mt-10 pt-6 border-t border-border/40 flex flex-col sm:flex-row justify-between items-center gap-2">
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Horsey. Built for Indian Equestrianism.
+            © {new Date().getFullYear()} Horsey. All rights reserved.
           </p>
           <p className="text-xs text-muted-foreground">
-            FEI · EFI · ITPF Compliant
+            KYC-verified vendors · 24-hour acceptance SLA · Secure payments
           </p>
         </div>
       </div>

@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Clock, CheckCircle, XCircle, Package, Truck, AlertTriangle } from "lucide-react"
+import { Clock, CheckCircle, XCircle, Package, Truck, AlertTriangle, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ReviewForm } from "@/components/features/review-form"
 import { formatCountdown, getRemainingMs, getSlaZone } from "shared"
+import { API_BASE } from "@/lib/api"
 
 function CountdownTimer({ deadline }: { deadline: string }) {
   const [remaining, setRemaining] = useState(getRemainingMs(new Date(deadline)))
@@ -38,10 +41,11 @@ const STATUS_CONFIG: Record<string, { label: string; icon: any; color: string }>
 export default function BuyerOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [reviewingItem, setReviewingItem] = useState<{ productId: string; productTitle: string; subOrderId: string } | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken")
-    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+    const token = localStorage.getItem("horsey_access_token")
+    const base = API_BASE
     fetch(`${base}/orders`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((data) => { setOrders(data.data ?? []); setLoading(false) })
@@ -129,6 +133,35 @@ export default function BuyerOrdersPage() {
                       {subOrder.status === "AUTO_CANCELLED"
                         ? "Order auto-cancelled — vendor did not respond. Full refund will be processed."
                         : `Declined: ${subOrder.declineReason}`}
+                    </div>
+                  )}
+
+                  {/* Review button for delivered orders */}
+                  {subOrder.status === "DELIVERED" && (
+                    <div className="space-y-2">
+                      {reviewingItem && reviewingItem.subOrderId === subOrder.id ? (
+                        <ReviewForm
+                          productId={reviewingItem.productId}
+                          productTitle={reviewingItem.productTitle}
+                          subOrderId={subOrder.id}
+                          onReviewSubmitted={() => setReviewingItem(null)}
+                          onClose={() => setReviewingItem(null)}
+                        />
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {subOrder.items?.map((item: any) => (
+                            <Button
+                              key={item.id}
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 text-xs"
+                              onClick={() => setReviewingItem({ productId: item.productId, productTitle: item.product?.title ?? "Product", subOrderId: subOrder.id })}
+                            >
+                              <Star className="w-3 h-3" /> Review {item.product?.title?.slice(0, 20)}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>

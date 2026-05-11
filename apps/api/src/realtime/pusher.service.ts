@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-/**
- * Pusher service for real-time score updates.
- * In development, logs events instead of dispatching.
- */
 @Injectable()
 export class PusherService {
   private readonly logger = new Logger(PusherService.name);
@@ -25,38 +21,24 @@ export class PusherService {
     }
   }
 
-  /**
-   * Trigger a realtime event.
-   * Used for live leaderboard updates during scoring.
-   */
   async trigger(channel: string, event: string, data: any) {
     if (this.pusher) {
       await this.pusher.trigger(channel, event, data);
       this.logger.log(`Pusher: ${channel}/${event}`);
     } else {
-      this.logger.warn(`[DEV] Pusher event: ${channel}/${event}`);
+      this.logger.warn(`[DEV] Pusher event: ${channel}/${event} ${JSON.stringify(data)}`);
     }
   }
 
-  /**
-   * Emit leaderboard update for a competition.
-   */
-  async emitLeaderboardUpdate(competitionId: string, leaderboard: any) {
-    await this.trigger(
-      `competition-${competitionId}`,
-      'leaderboard-update',
-      leaderboard,
-    );
+  async emitOrderUpdate(subOrderId: string, status: string, extra?: any) {
+    await this.trigger(`order-${subOrderId}`, 'status-update', { status, ...extra });
   }
 
-  /**
-   * Emit when a new score is submitted.
-   */
-  async emitScoreSubmitted(competitionId: string, scoreData: any) {
-    await this.trigger(
-      `competition-${competitionId}`,
-      'score-submitted',
-      scoreData,
-    );
+  async emitNewOrder(vendorId: string, subOrderId: string) {
+    await this.trigger(`vendor-${vendorId}`, 'new-order', { subOrderId });
+  }
+
+  async emitNotification(userId: string, notification: any) {
+    await this.trigger(`user-${userId}`, 'notification', notification);
   }
 }
