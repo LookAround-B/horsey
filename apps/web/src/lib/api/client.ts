@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+// In the browser, route through Next.js /api/proxy to avoid mixed-content errors.
+// On the server (SSR), call the real API directly.
+const API_URL =
+  typeof window !== 'undefined'
+    ? '/api/proxy'
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1');
 
 export const apiClient = axios.create({
   baseURL: API_URL,
