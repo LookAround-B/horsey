@@ -62,11 +62,11 @@ export class TokenService {
         role: params.role,
         sessionId: params.sessionId,
         jti,
-      },
+      } as any,
       {
         secret: this.accessSecret,
         expiresIn: this.accessExpiresIn,
-      },
+      } as any,
     );
 
     // Generate opaque refresh token
@@ -176,11 +176,11 @@ export class TokenService {
         role: storedToken.user.role,
         sessionId,
         jti,
-      },
+      } as any,
       {
         secret: this.accessSecret,
         expiresIn: this.accessExpiresIn,
-      },
+      } as any,
     );
 
     // Revoke old token and create new one in a transaction
