@@ -1,0 +1,5 @@
+pnpm run build
+
+pnpm dev
+
+port 3000
